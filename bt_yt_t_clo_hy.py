@@ -2,7 +2,7 @@
 """
 BT_YT_T_CLO_HY - Bot de Horóscopos Diarios (Tu Cielo Hoy)
 Motor de automatización Élite: Generación, SEO, Miniatura IA y Publicación Programada.
-Optimizado para ejecución 100% en GitHub Actions.
+Optimizado para ejecución 100% en GitHub Actions con fallback infalible.
 """
 import os
 import sys
@@ -127,15 +127,34 @@ def llamar_deepseek(fecha, fase_lunar):
     raise Exception("No se pudo obtener respuesta de DeepSeek tras 3 intentos")
 
 # ================================================================
-# 4. GENERACIÓN DE IMÁGENES (CLOUDFLARE 3 INTENTOS + PEXELS)
+# 4. GENERACIÓN DE IMÁGENES (CLOUDFLARE BLINDADO + PEXELS)
 # ================================================================
 def generar_cf(prompt, ruta_salida):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    payload = {"prompt": f"{prompt}, mystical, ethereal, cinematic lighting, 8k, highly detailed, no text, no letters", "steps": 4}
-    r = requests.post(url, headers=headers, json=payload, timeout=45)
+    
+    # Limpieza extrema del prompt para evitar error 400 de Cloudflare
+    clean_prompt = re.sub(r'[^a-zA-Z0-9\s,]', ' ', prompt)[:400]
+    
+    # NOTA: No enviamos width/height para evitar errores de dimensiones no múltiplos de 8 en Flux Schnell
+    payload = {
+        "prompt": f"{clean_prompt}, mystical, ethereal, cinematic lighting, 8k, highly detailed, no text, no letters",
+        "steps": 4
+    }
+    
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    
+    # Depuración: Si es 400, mostramos el motivo exacto de Cloudflare
+    if r.status_code == 400:
+        print(f"   ❌ Cloudflare 400 Bad Request. Detalle: {r.text}")
+        
     r.raise_for_status()
-    img_data = base64.b64decode(r.json()["result"]["image"])
+    
+    result = r.json()
+    if "result" not in result or "image" not in result["result"]:
+        raise ValueError(f"Respuesta de Cloudflare sin imagen: {result}")
+    
+    img_data = base64.b64decode(result["result"]["image"])
     with open(ruta_salida, "wb") as f:
         f.write(img_data)
     return ruta_salida
@@ -156,15 +175,18 @@ def generar_pexels(query, ruta_salida):
 
 def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
     print(f"   🎨 Generando: '{prompt}'...")
+    
+    # 3 Intentos con Cloudflare
     for i in range(1, 4):
         try:
             print(f"   ☁️ Intento {i}/3 con Cloudflare...")
             return generar_cf(prompt, ruta)
         except Exception as e:
-            print(f"   ⚠️ CF falló ({i}/3): {e}")
+            print(f"   ⚠️ CF falló ({i}/3): {str(e)[:100]}")
             time.sleep(2)
     
-    print("   ⚠️ Activando respaldo Pexels...")
+    # Fallback INFALIBLE a Pexels
+    print("   ⚠️ Cloudflare agotado. Activando respaldo Pexels (Garantizado)...")
     try:
         query_pexels = prompt + " dark mystical cosmic" if es_miniatura else prompt
         return generar_pexels(query_pexels, ruta)
@@ -236,7 +258,6 @@ def renderizar_video(signos_data, salida_video):
 # 7. SUBIDA A YOUTUBE (CON FILTRO DE TAGS SEGURO)
 # ================================================================
 def limpiar_y_validar_tags(tags_lista):
-    """Limpia y valida los tags para cumplir estrictamente con los límites de YouTube."""
     if not isinstance(tags_lista, list):
         tags_lista = [t.strip() for t in str(tags_lista).split(",")] if tags_lista else []
         
@@ -245,14 +266,14 @@ def limpiar_y_validar_tags(tags_lista):
     
     for tag in tags_lista:
         t = str(tag).strip().strip('"\'').lower()
-        t = re.sub(r'[^\w\sáéíóúñ]', ' ', t) # Solo letras, números y espacios
+        t = re.sub(r'[^\w\sáéíóúñ]', ' ', t)
         t = re.sub(r'\s+', ' ', t).strip()
         
-        if len(t) < 2 or len(t) > 30: # YouTube exige entre 2 y 30 caracteres por tag
+        if len(t) < 2 or len(t) > 30:
             continue
             
         if t not in tags_limpios:
-            if total_length + len(t) + 1 <= 500: # Límite total de 500 caracteres
+            if total_length + len(t) + 1 <= 500:
                 tags_limpios.append(t)
                 total_length += len(t) + 1
             else:
@@ -280,9 +301,8 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_programada_utc):
         
     desc_final = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete: {CANAL_LINK}"
     
-    # AQUÍ ESTÁ LA CORRECCIÓN: Filtramos los tags antes de enviarlos
     tags_seguros = limpiar_y_validar_tags(datos.get("tags", []))
-    print(f"🏷️ Tags validados para YouTube ({len(tags_seguros)} tags, {sum(len(t)+1 for t in tags_seguros)} chars): {tags_seguros}")
+    print(f"🏷️ Tags validados para YouTube ({len(tags_seguros)} tags, {sum(len(t)+1 for t in tags_seguros)} chars)")
     
     body = {
         "snippet": {"title": datos["titulo"][:100], "description": desc_final[:5000], "tags": tags_seguros, "categoryId": "24", "defaultLanguage": "es"},
@@ -325,6 +345,7 @@ def main():
             img_path = f"temp_signo_{i}.jpg"
             audio_path = f"temp_audio_{i}.mp3"
             
+            # Si Cloudflare falla 3 veces, Pexels se activa automáticamente y garantiza la imagen
             obtener_imagen_segura(signo.get("visual_prompt", "mystical galaxy stars"), img_path)
             asyncio.run(generar_audio(signo["guion"], audio_path))
             
