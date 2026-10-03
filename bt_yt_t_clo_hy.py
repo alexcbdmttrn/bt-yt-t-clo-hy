@@ -188,14 +188,14 @@ Genera el contenido completo para un video de horóscopo diario que abarque los 
 
 REGLAS SEO ÉLITE:
 1. Título: 55-65 caracteres. Debe incluir el tránsito lunar y un gancho de curiosidad.
-2. Descripción: 3 párrafos. P1: Gancho emocional. P2: Entity stacking (menciona planetas, energía del día y los 12 signos). P3: Llamada a la acción.
+2. Descripción: 3 párrafos. P1: Gancho emocional. P2: Entity stacking. P3: Llamada a la acción.
 3. Tags: EXACTAMENTE 15 tags cortos en español (máximo 20 caracteres cada uno).
-4. Comentario Fijado: Frase mística que invite a comentar el propio signo y decretar algo positivo.
+4. Comentario Fijado: Frase mística que invite a comentar el propio signo.
 5. Miniatura: Prompt en inglés para IA (fondo místico, sin texto) y 2-3 palabras en MAYÚSCULAS para el texto.
-6. Signos: Para cada uno de los 12 signos, genera: nombre, simbolo, titulo_cap (4-6 palabras), guion (~80 palabras: Energía, Amor, Dinero, Mantra final de 5 palabras), visual_prompt (3 palabras en inglés).
+6. Signos: Para cada uno de los 12 signos, genera: nombre, simbolo, titulo_cap (4-6 palabras), guion (~80 palabras), visual_prompt (3 palabras en inglés).
 
 Responde SOLO con este formato JSON válido, sin markdown:
-{
+{{
   "titulo": "...",
   "descripcion": "...",
   "tags": ["tag1", "tag2"],
@@ -203,20 +203,20 @@ Responde SOLO con este formato JSON válido, sin markdown:
   "miniatura_prompt": "...",
   "miniatura_texto": "...",
   "signos": [
-    {"nombre": "Aries", "simbolo": "♈", "titulo_cap": "...", "guion": "...", "visual_prompt": "red sunrise fire sparks"},
-    {"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "...", "guion": "...", "visual_prompt": "green forest sunlight"},
-    {"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "...", "guion": "...", "visual_prompt": "wind blowing trees"},
-    {"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "...", "guion": "...", "visual_prompt": "ocean waves calm"},
-    {"nombre": "Leo", "simbolo": "♌", "titulo_cap": "...", "guion": "...", "visual_prompt": "golden sunset"},
-    {"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "...", "guion": "...", "visual_prompt": "morning dew leaves"},
-    {"nombre": "Libra", "simbolo": "♎", "titulo_cap": "...", "guion": "...", "visual_prompt": "symmetry nature"},
-    {"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "...", "guion": "...", "visual_prompt": "deep ocean dark"},
-    {"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "...", "guion": "...", "visual_prompt": "mountain peak sunrise"},
-    {"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "...", "guion": "...", "visual_prompt": "stone architecture"},
-    {"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "...", "guion": "...", "visual_prompt": "aurora borealis"},
-    {"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "...", "guion": "...", "visual_prompt": "underwater coral reef"}
+    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "...", "guion": "...", "visual_prompt": "red sunrise fire sparks"}},
+    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "...", "guion": "...", "visual_prompt": "green forest sunlight"}},
+    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "...", "guion": "...", "visual_prompt": "wind blowing trees"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "...", "guion": "...", "visual_prompt": "ocean waves calm"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "...", "guion": "...", "visual_prompt": "golden sunset"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "...", "guion": "...", "visual_prompt": "morning dew leaves"}},
+    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "...", "guion": "...", "visual_prompt": "symmetry nature"}},
+    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "...", "guion": "...", "visual_prompt": "deep ocean dark"}},
+    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "...", "guion": "...", "visual_prompt": "mountain peak sunrise"}},
+    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "...", "guion": "...", "visual_prompt": "stone architecture"}},
+    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "...", "guion": "...", "visual_prompt": "aurora borealis"}},
+    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "...", "guion": "...", "visual_prompt": "underwater coral reef"}}
   ]
-}
+}}
 """
 
 def llamar_deepseek(fecha, fase_lunar):
