@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot de Horóscopos Diarios (Tu Cielo Hoy) - VERSIÓN 100% FINAL
-Motor completo: DeepSeek + Cloudflare 3 intentos + Pexels fallback + Ken Burns + Miniaturas vibrantes + Shorts + Música Aleatoria
-Optimizado para ejecución 100% en GitHub Actions (Ubuntu 22.04)
+BT_YT_T_CLO_HY - Bot de Horóscopos Diarios (Tu Cielo Hoy) - VERSIÓN NEÓN ÉLITE
+Correcciones: Validación anti-repetición de signos, Miniaturas con efecto Neón 3 capas, Shorts blindado.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback
 from datetime import datetime, timedelta, timezone
@@ -33,7 +32,7 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY ÉLITE - Tu Cielo Hoy (Versión Final Optimizada)")
+print("🔮 BT_YT_T_CLO_HY NEÓN ÉLITE - Tu Cielo Hoy")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -72,20 +71,22 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPT BLINDADO
+# 3. IA (DEEPSEEK) - CON VALIDACIÓN ANTI-REPETICIÓN
 # ================================================================
 PROMPT_ELITE = """
 Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo diario para los 12 signos.
 
-REGLAS:
-1. Título: 55-65 chars. Incluye tránsito lunar y gancho.
-2. Descripción: 3 párrafos (Gancho, Entity stacking, CTA).
-3. Tags: 15 tags cortos (máx 20 chars).
-4. Comentario Fijado: Frase mística para decretar.
-5. Miniatura: Prompt en inglés (fondo místico oscuro sin texto) y 2-3 palabras MAYÚSCULAS para texto.
-6. Signos: 12 signos. Cada uno: nombre, simbolo, titulo_cap (4-6 palabras), guion (~80 palabras: Energía, Amor, Dinero, Mantra 5 palabras), visual_prompt (3 palabras en inglés).
+REGLAS CRÍTICAS (OBLIGATORIO):
+1. Cada uno de los 12 signos debe tener un texto TOTALMENTE ÚNICO y específico para ese signo.
+2. PROHIBIDO repetir el mismo consejo, la misma frase o mencionar otro signo en la sección equivocada.
+3. Título: 55-65 chars. Incluye tránsito lunar y gancho.
+4. Descripción: 3 párrafos (Gancho, Entity stacking, CTA).
+5. Tags: 15 tags cortos (máx 20 chars).
+6. Comentario Fijado: Frase mística para decretar.
+7. Miniatura: Prompt en inglés (fondo místico oscuro sin texto) y 2-3 palabras MAYÚSCULAS para texto.
+8. Signos: 12 signos. Cada uno: nombre, simbolo, titulo_cap (4-6 palabras), guion (~80 palabras: Energía, Amor, Dinero, Mantra 5 palabras), visual_prompt (3 palabras en inglés).
 
 Responde SOLO con este formato JSON válido:
 {{
@@ -121,40 +122,38 @@ def llamar_deepseek(fecha, fase_lunar):
         try:
             r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=120)
             r.raise_for_status()
-            return parsear_json(r.json()["choices"][0]["message"]["content"].strip())
+            datos = parsear_json(r.json()["choices"][0]["message"]["content"].strip())
+            
+            # VALIDACIÓN ANTI-REPETICIÓN
+            if len(datos.get("signos", [])) != 12:
+                raise ValueError(f"La IA solo generó {len(datos.get('signos', []))} signos en lugar de 12.")
+            
+            nombres_generados = [s["nombre"].lower() for s in datos["signos"]]
+            nombres_esperados = ["aries", "tauro", "géminis", "cáncer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"]
+            if set(nombres_generados) != set(nombres_esperados):
+                raise ValueError("La IA repitió signos o faltan algunos. Reintentando...")
+                
+            return datos
         except Exception as e:
             print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(3)
-    raise Exception("Fallo DeepSeek")
+    raise Exception("Fallo DeepSeek tras 3 intentos de validación")
 
 # ================================================================
-# 4. IMÁGENES (CLOUDFLARE + PEXELS) - VISUALES IMPRESIONANTES
+# 4. IMÁGENES (CLOUDFLARE + PEXELS)
 # ================================================================
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    
     clean_prompt = re.sub(r'[^a-zA-Z0-9\s,]', ' ', prompt)[:350]
-    enhanced_prompt = (
-        f"{clean_prompt}, epic, hyper-detailed, 8k resolution, vivid saturated colors, "
-        f"dramatic cinematic lighting, masterpiece, mystical atmosphere, serene, peaceful, "
-        f"safe, wholesome, no text, no letters, no watermark"
-    )
-    
+    enhanced_prompt = f"{clean_prompt}, epic, hyper-detailed, 8k resolution, vivid saturated colors, dramatic cinematic lighting, masterpiece, mystical atmosphere, serene, peaceful, safe, wholesome, no text, no letters, no watermark"
     payload = {"prompt": enhanced_prompt, "steps": 4}
     r = requests.post(url, headers=headers, json=payload, timeout=60)
-    
-    if r.status_code == 400:
-        print(f"   ❌ Cloudflare 400. Detalle: {r.text[:150]}")
+    if r.status_code == 400: print(f"   ❌ Cloudflare 400: {r.text[:150]}")
     r.raise_for_status()
-    
     result = r.json()
-    if "result" not in result or "image" not in result["result"]:
-        raise ValueError(f"Sin imagen: {str(result)[:100]}")
-    
-    with open(ruta, "wb") as f:
-        f.write(base64.b64decode(result["result"]["image"]))
-        
+    if "result" not in result or "image" not in result["result"]: raise ValueError(f"Sin imagen: {str(result)[:100]}")
+    with open(ruta, "wb") as f: f.write(base64.b64decode(result["result"]["image"]))
     with Image.open(ruta) as im:
         im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
         im.save(ruta, "JPEG", quality=92)
@@ -166,11 +165,9 @@ def generar_pexels(query, ruta):
     r.raise_for_status()
     fotos = r.json().get("photos", [])
     if not fotos: raise Exception("Sin Pexels")
-    
     with requests.get(fotos[0]["src"]["large2x"], stream=True, timeout=15) as r_img:
         with open(ruta, "wb") as f:
             for chunk in r_img.iter_content(8192): f.write(chunk)
-            
     with Image.open(ruta) as im:
         im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
         im.save(ruta, "JPEG", quality=92)
@@ -184,7 +181,6 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
         except Exception as e:
             print(f"   ⚠️ CF falló ({i}/3)")
             time.sleep(2)
-            
     print("   ⚠️ Activando Pexels...")
     try:
         query = prompt + " dark mystical cosmic vibrant" if es_miniatura else prompt + " vivid cinematic"
@@ -193,7 +189,7 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
         return None
 
 # ================================================================
-# 5. AUDIO Y MINIATURAS VIBRANTES ÉLITE
+# 5. AUDIO Y MINIATURAS NEÓN ÉLITE (3 CAPAS DE BRILLO)
 # ================================================================
 async def generar_audio(texto, ruta):
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-4%").save(ruta)
@@ -205,54 +201,56 @@ def obtener_fuente(size):
         except: pass
     return ImageFont.load_default()
 
-def render_texto_gradiente_vibrante(texto, font_path, size):
+def render_texto_neon(texto, font_path, size):
+    """Texto con efecto Neón de 3 capas: Núcleo amarillo, resplandor púrpura, contorno negro grueso."""
     font = ImageFont.truetype(font_path, size)
     b = font.getbbox(texto)
-    w, h = (b[2] - b[0]) + 30, (b[3] - b[1]) + 30
+    w, h = (b[2] - b[0]) + 40, (b[3] - b[1]) + 40
     out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(out)
+    cx, cy = 20 - b[0], 20 - b[1]
     
-    d.text((15, 15), texto, font=font, fill=(0, 0, 0), stroke_width=12, stroke_fill=(0, 0, 0))
+    # Capa 1: Contorno negro grueso
+    d.text((cx, cy), texto, font=font, fill=(0, 0, 0), stroke_width=14, stroke_fill=(0, 0, 0))
+    # Capa 2: Resplandor púrpura difuminado
+    d.text((cx, cy), texto, font=font, fill=(128, 0, 128), stroke_width=8, stroke_fill=(128, 0, 128))
+    # Capa 3: Núcleo amarillo brillante
+    d.text((cx, cy), texto, font=font, fill=(255, 255, 0))
     
-    grad = np.zeros((h, w, 4), dtype=np.uint8)
-    t = np.linspace(0, 1, h)[:, None]
-    grad_rgb = (np.array([255, 215, 0], float) * (1 - t) + np.array([128, 0, 128], float) * t).astype(np.uint8)
-    grad[:, :, :3] = np.broadcast_to(grad_rgb[:, None, :], (h, w, 3))
-    grad[:, :, 3] = 255
-    grad_img = Image.fromarray(grad, "RGBA")
-    
-    mask = Image.new("L", (w, h), 0)
-    ImageDraw.Draw(mask).text((15, 15), texto, font=font, fill=255)
-    grad_img.putalpha(mask)
-    
-    return Image.alpha_composite(out, grad_img)
+    # Aplicar desenfoque de brillo (Glow)
+    glow = out.filter(ImageFilter.GaussianBlur(radius=6))
+    return Image.alpha_composite(glow, out)
 
 def crear_miniatura_elite(img_path, texto, salida):
     try:
         img = Image.open(img_path).convert("RGB").resize((1280, 720))
-        img = ImageEnhance.Brightness(img).enhance(0.6)
-        img = ImageEnhance.Contrast(img).enhance(1.3)
+        # Oscurecer fondo para que el neón explote
+        img = ImageEnhance.Brightness(img).enhance(0.5)
+        img = ImageEnhance.Contrast(img).enhance(1.4)
         img = img.convert("RGBA")
         
+        # Viñeta oscura en los bordes
         vignette = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
         draw_vig = ImageDraw.Draw(vignette)
         for x in range(400):
-            draw_vig.line([(x, 0), (x, 720)], fill=(0, 0, 0, int(180 * (1 - x/400))))
-            draw_vig.line([(1280-x, 0), (1280-x, 720)], fill=(0, 0, 0, int(180 * (1 - x/400))))
+            draw_vig.line([(x, 0), (x, 720)], fill=(0, 0, 0, int(200 * (1 - x/400))))
+            draw_vig.line([(1280-x, 0), (1280-x, 720)], fill=(0, 0, 0, int(200 * (1 - x/400))))
         img = Image.alpha_composite(img, vignette)
         
         fuente = "fonts/Anton-Regular.ttf"
         if not os.path.exists(fuente):
             fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         
-        bloque1 = render_texto_gradiente_vibrante(texto, fuente, 100)
-        bloque1 = bloque1.rotate(2, expand=True, resample=Image.BICUBIC)
+        # Texto principal NEÓN gigante
+        bloque1 = render_texto_neon(texto, fuente, 130)
+        bloque1 = bloque1.rotate(3, expand=True, resample=Image.BICUBIC)
         x = (1280 - bloque1.width) // 2
-        y = (720 - bloque1.height) // 2 - 40
+        y = (720 - bloque1.height) // 2 - 60
         
-        bloque2 = render_texto_gradiente_vibrante("MENSAJE DEL UNIVERSO", fuente, 45)
+        # Banner de acento
+        bloque2 = render_texto_neon("MENSAJE DEL UNIVERSO", fuente, 50)
         bloque2 = bloque2.rotate(-2, expand=True, resample=Image.BICUBIC)
-        y2 = y + bloque1.height + 40
+        y2 = y + bloque1.height + 30
         x2 = (1280 - bloque2.width) // 2
         
         img.paste(bloque1, (x, y), bloque1)
@@ -302,13 +300,11 @@ class RenderEscenas:
         bw, bh = base.size
         p = min(max(lt / e["dur"], 0), 1) if e["dur"] > 0 else 0
         if not e["zin"]: p = 1 - p
-        
         cw = bw / (1 + 0.2 * p)
         ch = cw * bh / bw
         mx, my = bw - cw, bh - ch
         x0 = min(max(mx / 2 + e["ax"] * mx / 2 * 0.8, 0), mx)
         y0 = min(max(my / 2 + e["ay"] * my / 2 * 0.8, 0), my)
-        
         fr = np.asarray(base.resize(self.size, Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch)))
         f = 1.0
         if e.get("fade") and lt < 0.6: f = lt / 0.6
@@ -321,18 +317,15 @@ def renderizar_video(signos_data, salida):
     for i, signo in enumerate(signos_data):
         img_path, audio_path = f"temp_signo_{i}.jpg", f"temp_audio_{i}.mp3"
         if not os.path.exists(img_path) or not os.path.exists(audio_path): continue
-        
         dur = AudioFileClip(audio_path).duration + 0.5
         img = Image.open(img_path).convert("RGB").resize((W, H))
         draw = ImageDraw.Draw(img)
         font_t = obtener_fuente(110)
         font_s = obtener_fuente(50)
-        
         draw.text((W//2, 250), f"{signo['simbolo']} {signo['nombre']}", font=font_t, fill=(255, 255, 255), anchor="mm", stroke_width=10, stroke_fill=(0, 0, 0))
         mantra = signo['guion'].split('.')[-1].strip()[:60]
         draw.text((W//2, 850), mantra, font=font_s, fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
         img.save(f"temp_frame_{i}.jpg")
-        
         escenas.append({"path": f"temp_frame_{i}.jpg", "inicio": t_total, "dur": dur, "etapa": "mystic", "fade": i==0, "zin": i%2==0, "ax": random.uniform(-1, 1), "ay": random.uniform(-1, 1)})
         t_total += dur
 
@@ -340,7 +333,6 @@ def renderizar_video(signos_data, salida):
     video = VideoClip(render.frame, duration=t_total)
     clips_audio = [AudioFileClip(e["path"].replace("temp_frame_", "temp_audio_").replace(".jpg", ".mp3")).set_start(e["inicio"]) for e in escenas]
     
-    # 🎵 SELECCIÓN ALEATORIA DE MÚSICA DE FONDO
     musicas_disponibles = [f for f in os.listdir(".") if f.lower().endswith(".mp3") and not f.startswith("temp_")]
     if musicas_disponibles:
         musica_elegida = random.choice(musicas_disponibles)
@@ -352,8 +344,6 @@ def renderizar_video(signos_data, salida):
             print(f"🎵 Música de fondo aplicada (8%): {musica_elegida}")
         except Exception as e:
             print(f"⚠️ Error al cargar música de fondo: {e}")
-    else:
-        print("⚠️ No se encontraron archivos .mp3 de fondo en el repositorio.")
 
     video = video.set_audio(CompositeAudioClip(clips_audio))
     print("🎬 Renderizando con Ken Burns y Viñetas...")
@@ -384,20 +374,14 @@ def obtener_credenciales_youtube():
 
 def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
-    
-    # ✅ CORRECCIÓN: Calcular timestamps REALES basados en la duración del audio generado
     tiempo_acumulado = 0.0
     caps = []
     for i, s in enumerate(datos["signos"]):
         audio_path = f"temp_audio_{i}.mp3"
         duracion_real = 35.0 
-        
         if os.path.exists(audio_path):
-            try:
-                duracion_real = AudioFileClip(audio_path).duration
-            except Exception:
-                pass
-        
+            try: duracion_real = AudioFileClip(audio_path).duration
+            except: pass
         mins = int(tiempo_acumulado // 60)
         secs = int(tiempo_acumulado % 60)
         caps.append(f"{mins:02d}:{secs:02d} {s['simbolo']} {s['nombre']}: {s['titulo_cap']}")
@@ -408,10 +392,8 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc):
         "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": limpiar_tags(datos.get("tags")), "categoryId": "24", "defaultLanguage": "es"},
         "status": {"privacyStatus": "private", "publishAt": hora_utc, "selfDeclaredMadeForKids": False, "containsSyntheticMedia": True}
     }
-    
     media = MediaFileUpload(ruta_video, chunksize=4*1024*1024, resumable=True)
     req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-    
     resp, reintentos = None, 0
     while resp is None:
         try:
@@ -422,47 +404,43 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc):
                 reintentos += 1
                 print(f"⚠️ Reintentando subida ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
-            else:
-                raise e
+            else: raise e
 
     video_id = resp["id"]
     print(f"✅ Video subido. ID: {video_id}")
-    
     if ruta_miniatura and os.path.exists(ruta_miniatura):
         youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(ruta_miniatura)).execute()
         print("✅ Miniatura aplicada.")
-        
     if datos.get("comentario_fijado"):
         try:
-            youtube.commentThreads().insert(part="snippet", body={
-                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}
-            }).execute()
+            youtube.commentThreads().insert(part="snippet", body={"snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}}).execute()
             print("✅ Comentario fijado publicado.")
         except HttpError as e:
-            print(f"⚠️ Error comentario (Revisa el scope youtube.force-ssl en tu token): {e}")
-            
+            print(f"⚠️ Error comentario: Debes regenerar tu token de YouTube incluyendo el scope 'https://www.googleapis.com/auth/youtube.force-ssl'")
     return video_id
 
 def crear_short(signos_data, datos, salida="short_final.mp4"):
-    seleccion = random.sample(signos_data, min(3, len(signos_data)))
-    escenas, t_total = [], 0.0
-    for i, signo in enumerate(seleccion):
-        idx = signos_data.index(signo)
-        img_path, audio_path = f"temp_signo_{idx}.jpg", f"temp_audio_{idx}.mp3"
-        if not os.path.exists(img_path) or not os.path.exists(audio_path): continue
-        
-        dur = min(AudioFileClip(audio_path).duration, 15)
-        escenas.append({"path": img_path, "inicio": t_total, "dur": dur, "etapa": "mystic", "fade": i==0, "zin": i%2==0, "ax": random.uniform(-1, 1), "ay": random.uniform(-1, 1)})
-        t_total += dur
-
-    if not escenas or t_total < 10: return None
-
-    render = RenderEscenas(escenas, (1080, 1920), t_total)
-    video = VideoClip(render.frame, duration=t_total)
-    clips_audio = [AudioFileClip(f"temp_audio_{signos_data.index(s)}.mp3").set_start(e["inicio"]) for s, e in zip(seleccion, escenas) if os.path.exists(f"temp_audio_{signos_data.index(s)}.mp3")]
-    video = video.set_audio(CompositeAudioClip(clips_audio))
-    video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
-    return salida
+    try:
+        seleccion = random.sample(signos_data, min(3, len(signos_data)))
+        escenas, t_total = [], 0.0
+        for i, signo in enumerate(seleccion):
+            # Encontrar el índice correcto en la lista original
+            idx = next((j for j, s in enumerate(signos_data) if s["nombre"] == signo["nombre"]), 0)
+            img_path, audio_path = f"temp_signo_{idx}.jpg", f"temp_audio_{idx}.mp3"
+            if not os.path.exists(img_path) or not os.path.exists(audio_path): continue
+            dur = min(AudioFileClip(audio_path).duration, 15)
+            escenas.append({"path": img_path, "inicio": t_total, "dur": dur, "etapa": "mystic", "fade": i==0, "zin": i%2==0, "ax": random.uniform(-1, 1), "ay": random.uniform(-1, 1)})
+            t_total += dur
+        if not escenas or t_total < 10: return None
+        render = RenderEscenas(escenas, (1080, 1920), t_total)
+        video = VideoClip(render.frame, duration=t_total)
+        clips_audio = [AudioFileClip(f"temp_audio_{next((j for j, s in enumerate(signos_data) if s['nombre'] == sg['nombre']), 0)}.mp3").set_start(e["inicio"]) for sg, e in zip(seleccion, escenas)]
+        video = video.set_audio(CompositeAudioClip(clips_audio))
+        video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
+        return salida
+    except Exception as e:
+        print(f"⚠️ Error generando Short: {e}")
+        return None
 
 # ================================================================
 # 8. MAIN
@@ -474,7 +452,6 @@ def main():
         hoy_fin = ahora.replace(hour=8, minute=0, second=0, microsecond=0)
         if ahora >= hoy_fin:
             hoy_inicio += timedelta(days=1); hoy_fin += timedelta(days=1)
-            
         minutos_a_sumar = random.randint(0, int((hoy_fin - hoy_inicio).total_seconds() / 60))
         hora_final = hoy_inicio + timedelta(minutes=minutos_a_sumar)
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
@@ -491,7 +468,7 @@ def main():
             obtener_imagen_segura(signo.get("visual_prompt", "mystical galaxy"), f"temp_signo_{i}.jpg")
             asyncio.run(generar_audio(signo["guion"], f"temp_audio_{i}.mp3"))
             
-        print("🖼️ 3. Creando miniatura Élite...")
+        print("🖼️ 3. Creando miniatura Neón Élite...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "mystical zodiac wheel glowing"), "temp_bg_thumb.jpg", es_miniatura=True)
         crear_miniatura_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "HORÓSCOPO HOY"), "miniatura.jpg")
         
@@ -513,12 +490,10 @@ def main():
             
         print("✨ ¡PROCESO COMPLETADO CON ÉXITO!")
         guardar_titulo(datos["titulo"])
-        
         for f in os.listdir():
             if f.startswith("temp_") or f in ["video_final.mp4", "miniatura.jpg", "short_final.mp4"]:
                 try: os.remove(f)
                 except: pass
-                
     except Exception as e:
         print(f"❌ ERROR FATAL: {e}")
         traceback.print_exc()
