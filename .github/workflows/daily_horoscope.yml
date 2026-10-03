@@ -2,12 +2,15 @@ name: Bot Horóscopo Diario (Tu Cielo Hoy)
 
 on:
   schedule:
-    - cron: '0 10 * * *' # 10:00 AM UTC = 4:00 AM CDMX
-  workflow_dispatch: # Permite ejecución manual con un clic
+    # Ejecutar todos los días a las 10:00 AM UTC (4:00 AM CDMX)
+    - cron: '0 10 * * *'
+  workflow_dispatch: # Permite ejecutarlo manualmente con un botón desde GitHub
 
 jobs:
   generate-and-upload:
     runs-on: ubuntu-latest
+    
+    # Inyectar los Secrets como variables de entorno globales
     env:
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -19,20 +22,42 @@ jobs:
       - name: 📥 Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: 🐍 Configurar Python con Caché
+      - name:  Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip' # Acelera la instalación de librerías
 
-      - name: 🔒 Verificar que existen los Secrets (Modo Seguro)
+      - name:  Verificar que existen los Secrets (Modo Seguro)
         run: |
           python -c "
           import os, sys
           keys = ['DEEPSEEK_API_KEY', 'PEXELS_API_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'YOUTUBE_USER_TOKEN']
           missing = [k for k in keys if not os.getenv(k)]
           if missing:
-              print(f' Faltan secrets en GitHub: {missing}')
+              print(f'❌ Faltan secrets en GitHub: {missing}')
               sys.exit(1)
           print('✅ Todas las variables de entorno están presentes y listas.')
           "
+
+      - name: 📦 Instalar FFmpeg (Necesario para MoviePy)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: 📦 Instalar dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🔮 Ejecutar Bot (Tu Cielo Hoy)
+        run: python bt_yt_t_clo_hy.py
+
+      - name: 📤 Subir archivos de diagnóstico (Solo si falla)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-error-logs
+          path: |
+            temp_*.jpg
+            temp_*.mp3
+            *.log
