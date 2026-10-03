@@ -1,0 +1,29 @@
+name: Bot Horóscopo Diario
+
+on:
+  schedule:
+    - cron: '0 10 * * *' # 10:00 AM UTC = 4:00 AM CDMX (para dejarlo listo antes de las 5 AM)
+  workflow_dispatch: # Permite ejecutarlo manualmente con un botón
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar repo
+        uses: actions/checkout@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Instalar FFmpeg (necesario para video)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+      - name: Ejecutar Bot
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          YOUTUBE_USER_TOKEN: ${{ secrets.YOUTUBE_USER_TOKEN }}
+        run: python bt_yt_t_clo_hy.py
