@@ -2,19 +2,18 @@ name: Bot Horóscopo Master (Tu Cielo Hoy)
 
 on:
   schedule:
-    # 1. DIARIO: Todos los días a las 10:00 AM UTC (4:00 AM CDMX) -> Publica 5-8 AM
+    # 1. DIARIO: Se activa a las 4:00 AM CDMX (10:00 UTC) -> Publica entre 5:00 AM y 8:00 AM
     - cron: '0 10 * * *'
-    # 2. SEMANAL: Lunes a las 13:00 PM UTC (7:00 AM CDMX) -> Publica 9-12 AM
+    # 2. SEMANAL (Lunes): Se activa a las 7:00 AM CDMX (13:00 UTC) -> Publica entre 9:00 AM y 12:00 PM
     - cron: '0 13 * * 1'
-    # 3. MENSUAL: Día 1 de cada mes a las 13:00 PM UTC (7:00 AM CDMX) -> Publica 9-12 AM
-    - cron: '0 13 1 * *'
+    # 3. MENSUAL (Día 1): Se activa a las 11:00 AM CDMX (17:00 UTC) -> Publica a las 12:00 PM (Mediodía)
+    - cron: '0 17 1 * *'
   workflow_dispatch: # Para pruebas manuales
 
 jobs:
   generate-and-upload:
     runs-on: ubuntu-latest
     
-    # Inyectar Secrets
     env:
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -23,30 +22,28 @@ jobs:
       YOUTUBE_USER_TOKEN: ${{ secrets.YOUTUBE_USER_TOKEN }}
 
     steps:
-      - name:  Clonar repositorio
+      - name: 📥 Clonar repositorio
         uses: actions/checkout@v4
 
-      - name: 🐍 Configurar Python
+      - name:  Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name: 🧠 Detectar Tipo de Horóscopo (Lógica Camaleón)
+      - name:  Detectar Tipo de Horóscopo (Lógica Camaleón)
         run: |
-          # Obtener fecha actual en UTC
           DAY_OF_MONTH=$(date -u +%d)
-          DAY_OF_WEEK=$(date -u +%u) # 1=Lunes, 7=Domingo
+          DAY_OF_WEEK=$(date -u +%u) # 1=Lunes
           
-          # Lógica de prioridad: Mensual > Semanal > Diario
           if [ "$DAY_OF_MONTH" = "01" ]; then
             echo "TIPO_HOROSCOPO=monthly" >> $GITHUB_ENV
-            echo " Hoy es día 1: Modo MENSUAL activado"
+            echo "🌕 Hoy es día 1: Modo MENSUAL activado (Publicación 12:00 PM)"
           elif [ "$DAY_OF_WEEK" = "1" ]; then
             echo "TIPO_HOROSCOPO=weekly" >> $GITHUB_ENV
-            echo "📅 Hoy es Lunes: Modo SEMANAL activado"
+            echo "📅 Hoy es Lunes: Modo SEMANAL activado (Publicación 9-12 AM)"
           else
             echo "TIPO_HOROSCOPO=daily" >> $GITHUB_ENV
-            echo " Modo DIARIO activado"
+            echo "☀️ Modo DIARIO activado (Publicación 5-8 AM)"
           fi
 
       - name: 🔒 Verificar Secrets
@@ -56,7 +53,7 @@ jobs:
           keys = ['DEEPSEEK_API_KEY', 'PEXELS_API_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'YOUTUBE_USER_TOKEN']
           missing = [k for k in keys if not os.getenv(k)]
           if missing:
-              print(f'❌ Faltan secrets: {missing}')
+              print(f' Faltan secrets: {missing}')
               sys.exit(1)
           print('✅ Variables listas.')
           "
@@ -72,7 +69,7 @@ jobs:
           TIPO_HOROSCOPO: ${{ env.TIPO_HOROSCOPO }}
         run: python bt_yt_t_clo_hy.py
 
-      - name:  Subir logs si falla
+      - name: 📤 Subir logs si falla
         if: failure()
         uses: actions/upload-artifact@v4
         with:
