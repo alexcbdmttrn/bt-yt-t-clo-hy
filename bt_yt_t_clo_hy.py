@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN CON DIAGNÓSTICO CLOUDFLARE
-Fix: Logs detallados de error de Cloudflare para identificar la causa raíz.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN OPTIMIZADA
+Fix: 1 solo intento Cloudflare → Pexels inmediato. Todo lo demás igual.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -88,7 +88,7 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Con Diagnóstico CF)")
+print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (1 Intento CF + Pexels)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -152,8 +152,8 @@ Responde SOLO JSON:
     {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "bright green forest sunlight"}},
     {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "bright wind blowing trees"}},
     {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "bright ocean waves calm"}},
-    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "bright golden sunset"}},
-    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "bright morning dew leaves"}},
+    {{"nombre": "Leo", "simbolo": "", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "bright golden sunset"}},
+    {{"nombre": "Virgo", "simbolo": "", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "bright morning dew leaves"}},
     {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "Libra, el equilibrio...", "visual_prompt": "bright pink sunset clouds"}},
     {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "Escorpio, tu intensidad...", "visual_prompt": "bright deep ocean mystical"}},
     {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "bright mountain peak sunrise"}},
@@ -194,13 +194,12 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     raise Exception("Fallo DeepSeek tras 3 intentos")
 
 # ================================================================
-# 4. IMÁGENES (CLOUDFLARE CON DIAGNÓSTICO DETALLADO + PEXELS)
+# 4. IMÁGENES (1 INTENTO CLOUDFLARE → PEXELS INMEDIATO)
 # ================================================================
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
     
-    # Limpieza extrema
     clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
     clean_prompt = ' '.join(clean_prompt.split())
     safe_prompt = f"{clean_prompt}, mystical, vibrant colors, 8k resolution, highly detailed, no text, no watermark"
@@ -210,7 +209,6 @@ def generar_cf(prompt, ruta):
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=60)
         
-        # ✅ AQUÍ ESTÁ LA CLAVE: Imprimimos el error EXACTO que devuelve Cloudflare
         if r.status_code != 200:
             print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:400]}")
             
@@ -246,19 +244,19 @@ def generar_pexels(query, ruta):
     return ruta
 
 def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
-    for i in range(1, 4):
-        try:
-            print(f"   ☁️ CF Intento {i}/3...")
-            return generar_cf(prompt, ruta)
-        except Exception as e:
-            # El error detallado ya se imprime dentro de generar_cf, aquí solo avanzamos
-            time.sleep(1)
+    # ✅ CAMBIO: Solo 1 intento con Cloudflare, si falla va directo a Pexels
+    try:
+        print(f"   ☁️ CF Intento 1/1...")
+        return generar_cf(prompt, ruta)
+    except Exception as e:
+        print(f"   ⚠️ CF falló, usando Pexels inmediatamente...")
     
-    print("   ⚠️ Activando Pexels (Fallback rápido)...")
+    # Fallback directo a Pexels
     try:
         query = prompt + " bright vibrant mystical" if es_miniatura else prompt + " vivid cinematic"
         return generar_pexels(query, ruta)
-    except:
+    except Exception as e:
+        print(f"   ❌ Pexels también falló: {e}")
         return None
 
 # ================================================================
@@ -303,7 +301,6 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         
         fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         
-        # Ajuste automático de texto
         palabras = texto_principal.upper().split()
         if len(palabras) > 4:
             texto_principal = " ".join(palabras[:4])
@@ -475,7 +472,7 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"⚠️ Reintentando subida ({reintentos}/8)...")
+                print(f"️ Reintentando subida ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
             
