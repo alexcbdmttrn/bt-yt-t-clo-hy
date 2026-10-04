@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN FINAL OPTIMIZADA
-Fix: Duración ~8 min, Miniatura con texto ajustado, Cloudflare estable, 
-     Nombres de signos en audio, Hashtags en descripción.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN CON DIAGNÓSTICO CLOUDFLARE
+Fix: Logs detallados de error de Cloudflare para identificar la causa raíz.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -89,7 +88,7 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Versión Final Optimizada)")
+print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Con Diagnóstico CF)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -128,7 +127,7 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS OPTIMIZADOS PARA ~8 MINUTOS
+# 3. IA (DEEPSEEK)
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico.
@@ -195,34 +194,42 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     raise Exception("Fallo DeepSeek tras 3 intentos")
 
 # ================================================================
-# 4. IMÁGENES (CLOUDFLARE ESTABLE + PEXELS)
+# 4. IMÁGENES (CLOUDFLARE CON DIAGNÓSTICO DETALLADO + PEXELS)
 # ================================================================
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
     
-    # Limpieza EXTREMA para evitar filtro 400 de Cloudflare
+    # Limpieza extrema
     clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
     clean_prompt = ' '.join(clean_prompt.split())
     safe_prompt = f"{clean_prompt}, mystical, vibrant colors, 8k resolution, highly detailed, no text, no watermark"
     
     payload = {"prompt": safe_prompt, "steps": 4}
-    r = requests.post(url, headers=headers, json=payload, timeout=60)
     
-    if r.status_code == 400:
-        print(f"   ❌ Cloudflare 400 (filtro de seguridad).")
-    r.raise_for_status()
-    
-    result = r.json()
-    if "result" not in result or "image" not in result["result"]:
-        raise ValueError(f"Sin imagen: {str(result)[:100]}")
-    
-    with open(ruta, "wb") as f:
-        f.write(base64.b64decode(result["result"]["image"]))
-    with Image.open(ruta) as im:
-        im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
-        im.save(ruta, "JPEG", quality=92)
-    return ruta
+    try:
+        r = requests.post(url, headers=headers, json=payload, timeout=60)
+        
+        # ✅ AQUÍ ESTÁ LA CLAVE: Imprimimos el error EXACTO que devuelve Cloudflare
+        if r.status_code != 200:
+            print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:400]}")
+            
+        r.raise_for_status()
+        
+        result = r.json()
+        if "result" not in result or "image" not in result["result"]:
+            raise ValueError(f"Respuesta sin imagen: {str(result)[:200]}")
+            
+        with open(ruta, "wb") as f:
+            f.write(base64.b64decode(result["result"]["image"]))
+        with Image.open(ruta) as im:
+            im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
+            im.save(ruta, "JPEG", quality=92)
+        return ruta
+        
+    except Exception as e:
+        print(f"   ❌ Excepción en Cloudflare: {e}")
+        raise
 
 def generar_pexels(query, ruta):
     headers = {"Authorization": PEXELS_API_KEY}
@@ -244,7 +251,7 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
             print(f"   ☁️ CF Intento {i}/3...")
             return generar_cf(prompt, ruta)
         except Exception as e:
-            print(f"   ⚠️ CF falló ({i}/3)")
+            # El error detallado ya se imprime dentro de generar_cf, aquí solo avanzamos
             time.sleep(1)
     
     print("   ⚠️ Activando Pexels (Fallback rápido)...")
@@ -255,7 +262,7 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
         return None
 
 # ================================================================
-# 5. AUDIO Y MINIATURAS BRILLANTES 8K (CON AJUSTE DE TEXTO)
+# 5. AUDIO Y MINIATURAS BRILLANTES 8K
 # ================================================================
 async def generar_audio(texto, ruta):
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-4%").save(ruta)
@@ -296,7 +303,7 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         
         fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         
-        # ✅ AJUSTE AUTOMÁTICO DE TEXTO PARA QUE NO SE SALGA DEL CUADRO
+        # Ajuste automático de texto
         palabras = texto_principal.upper().split()
         if len(palabras) > 4:
             texto_principal = " ".join(palabras[:4])
@@ -304,7 +311,7 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         size = 130
         while size > 60:
             bloque1 = render_texto_gradiente_8k(texto_principal, fuente, size)
-            if bloque1.width < 1100: # Margen de seguridad para 1280px
+            if bloque1.width < 1100:
                 break
             size -= 10
             
@@ -327,7 +334,7 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         return False
 
 # ================================================================
-# 6. RENDER DE VIDEO (KEN BURNS + MÚSICA ALEATORIA)
+# 6. RENDER DE VIDEO
 # ================================================================
 _VIG = {}
 def vignette(size, base=1.0, fuerza=0.4):
@@ -422,7 +429,7 @@ def renderizar_video(signos_data, salida):
     return salida
 
 # ================================================================
-# 7. SUBIDA A YOUTUBE (CON HASHTAGS)
+# 7. SUBIDA A YOUTUBE
 # ================================================================
 def obtener_credenciales_youtube():
     yt_token = json.loads(YT_TOKEN_STR)
@@ -531,8 +538,6 @@ def main():
         for i, signo in enumerate(datos["signos"]):
             print(f"   Procesando {signo['nombre']}...")
             obtener_imagen_segura(signo.get("visual_prompt", "bright mystical galaxy"), f"temp_signo_{i}.jpg")
-            
-            # ✅ SEGURO: Forzamos que el audio empiece con el nombre del signo
             guion_con_nombre = f"{signo['nombre']}. {signo['guion']}"
             asyncio.run(generar_audio(guion_con_nombre, f"temp_audio_{i}.mp3"))
             
