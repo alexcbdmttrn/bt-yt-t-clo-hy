@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN CORREGIDA
-Fix: Tags ASCII puro + Cloudflare simplificado
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ROBUSTA
+Fix: Validación relajada + Expansión automática de guiones cortos
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -32,7 +32,7 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS INTELIGENTE (ASCII PURO - COMPATIBLE CON YOUTUBE)
+# 🏷️ MOTOR DE TAGS INTELIGENTE (ASCII PURO)
 # ================================================================
 TAGS_GENERALES_SIEMPRE = [
     "horoscopo", "horoscopo diario", "astrologia", "zodiaco", "tu cielo hoy",
@@ -42,32 +42,20 @@ TAGS_GENERALES_SIEMPRE = [
 ]
 
 TAGS_POR_MODO = {
-    "daily": [
-        "horoscopo de hoy", "horoscopo hoy", "prediccion de hoy",
-        "energia de hoy", "mensaje de hoy", "horoscopo para hoy"
-    ],
-    "weekly": [
-        "horoscopo semanal", "horoscopo de la semana", "semana astral",
-        "prediccion semanal", "tendencias de la semana"
-    ],
-    "monthly": [
-        "horoscopo mensual", "horoscopo del mes", "prediccion mensual",
-        "ciclo lunar", "luna llena", "luna nueva"
-    ]
+    "daily": ["horoscopo de hoy", "horoscopo hoy", "prediccion de hoy", "energia de hoy", "mensaje de hoy"],
+    "weekly": ["horoscopo semanal", "horoscopo de la semana", "semana astral", "prediccion semanal"],
+    "monthly": ["horoscopo mensual", "horoscopo del mes", "prediccion mensual", "ciclo lunar"]
 }
 
 def normalizar_ascii(texto):
-    """Convierte texto a ASCII puro (sin acentos) para YouTube."""
     texto = unicodedata.normalize('NFKD', texto)
     texto = ''.join(c for c in texto if not unicodedata.combining(c))
     return texto.lower()
 
 def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
-    """Construye tags 100% compatibles con YouTube (ASCII puro)."""
     tags_finales = []
     total_chars = 0
     
-    # 1. Tags generales (siempre)
     for tag in TAGS_GENERALES_SIEMPRE:
         tag_limpio = normalizar_ascii(tag).strip()
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
@@ -77,7 +65,6 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
     
-    # 2. Tags específicos del modo
     for tag in TAGS_POR_MODO.get(modo, []):
         tag_limpio = normalizar_ascii(tag).strip()
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
@@ -87,7 +74,6 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
     
-    # 3. Tags dinámicos de la IA (limpios y normalizados)
     if isinstance(tags_dinamicos_ia, list):
         for tag in tags_dinamicos_ia:
             t = normalizar_ascii(str(tag)).strip()
@@ -102,16 +88,15 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
         tags_finales = TAGS_GENERALES_SIEMPRE[:15]
     
     print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars} caracteres")
-    print(f"   Tags: {tags_finales[:10]}...")
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Versión Corregida)")
+print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Versión Robusta)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
-    print("❌ ERROR: Faltan variables de entorno en los Secrets de GitHub.")
+    print(" ERROR: Faltan variables de entorno en los Secrets de GitHub.")
     sys.exit(1)
 
 # ================================================================
@@ -145,7 +130,7 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - 3 PROMPTS DIFERENTES SEGÚN MODO
+# 3. IA (DEEPSEEK) - 3 PROMPTS + EXPANSIÓN AUTOMÁTICA
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico.
@@ -159,7 +144,9 @@ REGLAS:
 4. Tags: 10 tags cortos específicos del día (máx 20 chars cada uno, SIN acentos).
 5. Comentario Fijado: Frase mística para decretar.
 6. Miniatura: Prompt en inglés (fondo místico oscuro) y 2-3 palabras MAYÚSCULAS.
-7. DURACIÓN: Cada signo ~110-125 palabras (Energía, Amor, Dinero, Mantra 5 palabras).
+7. ⚠️ DURACIÓN CRÍTICA: Cada signo debe tener EXACTAMENTE 110-125 palabras. Esto es OBLIGATORIO.
+   Estructura: Energía general (30 palabras) + Amor (30 palabras) + Dinero (30 palabras) + Mantra final (5 palabras).
+   NO seas breve. Desarrolla cada sección con detalles específicos.
 
 Responde SOLO JSON:
 {{
@@ -169,7 +156,7 @@ Responde SOLO JSON:
     {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "...", "visual_prompt": "red sunrise fire sparks"}},
     {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "...", "visual_prompt": "green forest sunlight"}},
     {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "...", "visual_prompt": "wind blowing trees"}},
-    {{"nombre": "Cáncer", "simbolo": "", "titulo_cap": "Marea Emocional", "guion": "...", "visual_prompt": "ocean waves calm"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "...", "visual_prompt": "ocean waves calm"}},
     {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "...", "visual_prompt": "golden sunset"}},
     {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "...", "visual_prompt": "morning dew leaves"}},
     {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "...", "visual_prompt": "pink sunset clouds"}},
@@ -194,7 +181,8 @@ REGLAS:
 4. Tags: 10 tags específicos de la semana (máx 20 chars, SIN acentos).
 5. Comentario Fijado: Pregunta sobre la semana.
 6. Miniatura: Prompt en inglés y 2-3 palabras MAYÚSCULAS.
-7. DURACIÓN: Cada signo ~200-220 palabras (Tendencia general, Amor semana, Dinero semana, Día clave, Mantra).
+7. ️ DURACIÓN CRÍTICA: Cada signo debe tener EXACTAMENTE 200-220 palabras.
+   Estructura: Tendencia general (50 palabras) + Amor semana (50 palabras) + Dinero semana (50 palabras) + Día clave (30 palabras) + Mantra (10 palabras).
 
 Responde SOLO JSON:
 {{
@@ -212,7 +200,7 @@ Responde SOLO JSON:
     {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Semana de Aventura", "guion": "...", "visual_prompt": "mountain peak sunrise"}},
     {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Semana de Metas", "guion": "...", "visual_prompt": "stone architecture"}},
     {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Semana de Innovación", "guion": "...", "visual_prompt": "aurora borealis"}},
-    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Semana de Intuición", "guion": "...", "visual_prompt": "underwater coral reef"}}
+    {{"nombre": "Piscis", "simbolo": "", "titulo_cap": "Semana de Intuición", "guion": "...", "visual_prompt": "underwater coral reef"}}
   ]
 }}
 """
@@ -229,7 +217,8 @@ REGLAS:
 4. Tags: 10 tags específicos del mes (máx 20 chars, SIN acentos).
 5. Comentario Fijado: Decreto mensual.
 6. Miniatura: Prompt en inglés y 2-3 palabras MAYÚSCULAS.
-7. DURACIÓN: Cada signo ~350-400 palabras (Ciclo completo, Fechas clave de suerte, Amor mes, Dinero mes, Reto del mes, Mantra mensual).
+7. ️ DURACIÓN CRÍTICA: Cada signo debe tener EXACTAMENTE 350-400 palabras.
+   Estructura: Ciclo completo (80 palabras) + Fechas clave de suerte (60 palabras) + Amor mes (70 palabras) + Dinero mes (70 palabras) + Reto del mes (50 palabras) + Mantra mensual (20 palabras).
 
 Responde SOLO JSON:
 {{
@@ -252,16 +241,59 @@ Responde SOLO JSON:
 }}
 """
 
+def expandir_guion_corto(signo_nombre, guion_actual, modo):
+    """Usa DeepSeek para expandir un guion que es demasiado corto."""
+    palabras_actuales = len(guion_actual.split())
+    
+    if modo == "daily":
+        target = 115
+        prompt_extra = f"El guion actual tiene {palabras_actuales} palabras. Necesita llegar a 115 palabras. Añade más detalles sobre energía, amor y dinero."
+    elif modo == "weekly":
+        target = 210
+        prompt_extra = f"El guion actual tiene {palabras_actuales} palabras. Necesita llegar a 210 palabras. Expande cada sección con más detalles."
+    else:
+        target = 375
+        prompt_extra = f"El guion actual tiene {palabras_actuales} palabras. Necesita llegar a 375 palabras. Desarrolla profundamente cada aspecto."
+    
+    prompt = f"""
+Eres la astróloga más prestigiosa de YouTube. Necesitas EXPANDIR este guion de {signo_nombre}:
+
+GUION ACTUAL:
+"{guion_actual}"
+
+{prompt_extra}
+
+Mantén el mismo tono místico y cálido. NO repitas lo que ya está escrito. Añade contenido nuevo y relevante.
+Devuelve SOLO el guion expandido, sin comillas, sin explicaciones adicionales.
+"""
+    
+    headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 500}
+    
+    try:
+        r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+        r.raise_for_status()
+        texto_expandido = r.json()["choices"][0]["message"]["content"].strip()
+        
+        # Combinar guion original con expansión
+        guion_final = f"{guion_actual} {texto_expandido}"
+        palabras_finales = len(guion_final.split())
+        print(f"   ✅ {signo_nombre} expandido: {palabras_actuales} → {palabras_finales} palabras")
+        return guion_final
+    except Exception as e:
+        print(f"   ⚠️ No se pudo expandir {signo_nombre}: {e}")
+        return guion_actual
+
 def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     if modo == "weekly":
         prompt = PROMPT_SEMANAL.format(fecha=fecha, fase_lunar=fase_lunar)
-        min_palabras = 150
+        min_palabras = 150  # Mínimo relajado (target 200-220)
     elif modo == "monthly":
         prompt = PROMPT_MENSUAL.format(fecha=fecha, fase_lunar=fase_lunar)
-        min_palabras = 250
+        min_palabras = 250  # Mínimo relajado (target 350-400)
     else:
         prompt = PROMPT_DIARIO.format(fecha=fecha, fase_lunar=fase_lunar)
-        min_palabras = 90
+        min_palabras = 70  # ✅ MÍNIMO RELAJADO (target 110-125)
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "response_format": {"type": "json_object"}}
@@ -280,16 +312,37 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
             nombres_esperados = ["aries", "tauro", "géminis", "cáncer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"]
             if set(nombres_generados) != set(nombres_esperados):
                 raise ValueError("La IA repitió signos o faltan algunos.")
-                
-            for s in datos["signos"]:
-                if len(s["guion"].split()) < min_palabras:
-                    raise ValueError(f"El guion de {s['nombre']} es muy corto ({len(s['guion'].split())} palabras).")
+            
+            # ✅ VALIDACIÓN RELAJADA: Solo rechazamos si es MUY corto (menos de 50 palabras)
+            signos_muy_cortos = [s for s in datos["signos"] if len(s["guion"].split()) < 50]
+            if signos_muy_cortos:
+                raise ValueError(f"{len(signos_muy_cortos)} signos tienen menos de 50 palabras.")
                 
             return datos
         except Exception as e:
-            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
+            print(f"️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(3)
     raise Exception("Fallo DeepSeek tras 3 intentos")
+
+def expandir_signos_cortos(datos, modo):
+    """Expande automáticamente los signos que tienen menos palabras de las ideales."""
+    if modo == "daily":
+        umbral_expansion = 90  # Expandir si tiene menos de 90 palabras
+    elif modo == "weekly":
+        umbral_expansion = 150
+    else:
+        umbral_expansion = 280
+    
+    print(f"\n📝 Verificando longitud de guiones (umbral: {umbral_expansion} palabras)...")
+    
+    for signo in datos["signos"]:
+        palabras = len(signo["guion"].split())
+        if palabras < umbral_expansion:
+            print(f"   ⚠️ {signo['nombre']} tiene {palabras} palabras (mínimo {umbral_expansion}). Expandiendo...")
+            signo["guion"] = expandir_guion_corto(signo["nombre"], signo["guion"], modo)
+            time.sleep(1)  # Pausa para no saturar la API
+    
+    return datos
 
 # ================================================================
 # 4. IMÁGENES (CLOUDFLARE SIMPLIFICADO + PEXELS)
@@ -297,25 +350,18 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    
-    # Prompt SIMPLIFICADO para evitar filtro NSFW
     clean_prompt = re.sub(r'[^a-zA-Z0-9\s,]', ' ', prompt)[:200]
     enhanced_prompt = f"{clean_prompt}, 8k, vivid colors, cinematic lighting, no text"
-    
     payload = {"prompt": enhanced_prompt, "steps": 4}
     r = requests.post(url, headers=headers, json=payload, timeout=60)
-    
     if r.status_code == 400:
         print(f"   ❌ Cloudflare 400: {r.text[:150]}")
     r.raise_for_status()
-    
     result = r.json()
     if "result" not in result or "image" not in result["result"]:
         raise ValueError(f"Sin imagen: {str(result)[:100]}")
-    
     with open(ruta, "wb") as f:
         f.write(base64.b64decode(result["result"]["image"]))
-    
     with Image.open(ruta) as im:
         im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
         im.save(ruta, "JPEG", quality=92)
@@ -327,11 +373,9 @@ def generar_pexels(query, ruta):
     r.raise_for_status()
     fotos = r.json().get("photos", [])
     if not fotos: raise Exception("Sin Pexels")
-    
     with requests.get(fotos[0]["src"]["large2x"], stream=True, timeout=15) as r_img:
         with open(ruta, "wb") as f:
             for chunk in r_img.iter_content(8192): f.write(chunk)
-    
     with Image.open(ruta) as im:
         im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
         im.save(ruta, "JPEG", quality=92)
@@ -345,7 +389,6 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
         except Exception as e:
             print(f"   ⚠️ CF falló ({i}/3)")
             time.sleep(2)
-    
     print("   ⚠️ Activando Pexels...")
     try:
         query = prompt + " mystical cosmic" if es_miniatura else prompt
@@ -392,26 +435,21 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         img = ImageEnhance.Contrast(img).enhance(1.4)
         img = ImageEnhance.Color(img).enhance(1.3)
         img = img.convert("RGBA")
-        
         vignette = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
         draw_vig = ImageDraw.Draw(vignette)
         for x in range(400):
             draw_vig.line([(x, 0), (x, 720)], fill=(0, 0, 0, int(200 * (1 - x/400))))
             draw_vig.line([(1280-x, 0), (1280-x, 720)], fill=(0, 0, 0, int(200 * (1 - x/400))))
         img = Image.alpha_composite(img, vignette)
-        
         fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        
         bloque1 = render_texto_gradiente_8k(texto_principal, fuente, 130)
         bloque1 = bloque1.rotate(3, expand=True, resample=Image.BICUBIC)
         x1 = (1280 - bloque1.width) // 2
         y1 = (720 - bloque1.height) // 2 - 60
-        
         bloque2 = render_banner_grafico(texto_banner, fuente, 50)
         bloque2 = bloque2.rotate(-2, expand=True, resample=Image.BICUBIC)
         x2 = (1280 - bloque2.width) // 2
         y2 = y1 + bloque1.height + 30
-        
         img.paste(bloque1, (x1, y1), bloque1)
         img.paste(bloque2, (x2, y2), bloque2)
         img.convert("RGB").save(salida, "JPEG", quality=95)
@@ -477,7 +515,6 @@ def renderizar_video(signos_data, salida):
     for i, signo in enumerate(signos_data):
         img_path, audio_path = f"temp_signo_{i}.jpg", f"temp_audio_{i}.mp3"
         if not os.path.exists(img_path) or not os.path.exists(audio_path): continue
-        
         dur = AudioFileClip(audio_path).duration + 0.5
         img = Image.open(img_path).convert("RGB").resize((W, H))
         draw = ImageDraw.Draw(img)
@@ -486,19 +523,16 @@ def renderizar_video(signos_data, salida):
             font_s = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 50)
         except:
             font_t = font_s = ImageFont.load_default()
-            
         draw.text((W//2, 250), f"{signo['simbolo']} {signo['nombre']}", font=font_t, fill=(255, 255, 255), anchor="mm", stroke_width=10, stroke_fill=(0, 0, 0))
         mantra = signo['guion'].split('.')[-1].strip()[:60]
         draw.text((W//2, 850), mantra, font=font_s, fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
         img.save(f"temp_frame_{i}.jpg")
-        
         escenas.append({"path": f"temp_frame_{i}.jpg", "inicio": t_total, "dur": dur, "etapa": "mystic", "fade": i==0, "zin": i%2==0, "ax": random.uniform(-1, 1), "ay": random.uniform(-1, 1)})
         t_total += dur
 
     render = RenderEscenas(escenas, (W, H), t_total)
     video = VideoClip(render.frame, duration=t_total)
     clips_audio = [AudioFileClip(e["path"].replace("temp_frame_", "temp_audio_").replace(".jpg", ".mp3")).set_start(e["inicio"]) for e in escenas]
-    
     musicas_disponibles = [f for f in os.listdir(".") if f.lower().endswith(".mp3") and not f.startswith("temp_")]
     if musicas_disponibles:
         musica_elegida = random.choice(musicas_disponibles)
@@ -510,14 +544,13 @@ def renderizar_video(signos_data, salida):
             print(f"🎵 Música de fondo aplicada (8%): {musica_elegida}")
         except Exception as e:
             print(f"⚠️ Error al cargar música de fondo: {e}")
-
     video = video.set_audio(CompositeAudioClip(clips_audio))
-    print("🎬 Renderizando con Ken Burns y Viñetas...")
+    print(" Renderizando con Ken Burns y Viñetas...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
     return salida
 
 # ================================================================
-# 7. SUBIDA A YOUTUBE (CON TAGS ASCII PURO)
+# 7. SUBIDA A YOUTUBE
 # ================================================================
 def obtener_credenciales_youtube():
     yt_token = json.loads(YT_TOKEN_STR)
@@ -530,7 +563,6 @@ def obtener_credenciales_youtube():
 
 def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
-    
     tiempo_acumulado = 0.0
     caps = []
     for i, s in enumerate(datos["signos"]):
@@ -539,37 +571,18 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         if os.path.exists(audio_path):
             try: duracion_real = AudioFileClip(audio_path).duration
             except: pass
-        
         mins = int(tiempo_acumulado // 60)
         secs = int(tiempo_acumulado % 60)
         caps.append(f"{mins:02d}:{secs:02d} {s['simbolo']} {s['nombre']}: {s['titulo_cap']}")
         tiempo_acumulado += duracion_real + 0.5
-        
     desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete: {CANAL_LINK}"
-    
-    # ✅ Tags ASCII puro (sin acentos)
     tags_finales = construir_tags_finales(datos.get("tags", []), modo)
-    
     body = {
-        "snippet": {
-            "title": datos["titulo"][:100],
-            "description": desc[:5000],
-            "tags": tags_finales,
-            "categoryId": "22",
-            "defaultLanguage": "es",
-            "defaultAudioLanguage": "es"
-        },
-        "status": {
-            "privacyStatus": "private",
-            "publishAt": hora_utc,
-            "selfDeclaredMadeForKids": False,
-            "containsSyntheticMedia": True
-        }
+        "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": tags_finales, "categoryId": "22", "defaultLanguage": "es", "defaultAudioLanguage": "es"},
+        "status": {"privacyStatus": "private", "publishAt": hora_utc, "selfDeclaredMadeForKids": False, "containsSyntheticMedia": True}
     }
-    
     media = MediaFileUpload(ruta_video, chunksize=4*1024*1024, resumable=True)
     req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
-    
     resp, reintentos = None, 0
     while resp is None:
         try:
@@ -578,92 +591,76 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"️ Reintentando subida ({reintentos}/8)...")
+                print(f"⚠️ Reintentando subida ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
-
     video_id = resp["id"]
     print(f"✅ Video subido. ID: {video_id}")
-    
     if ruta_miniatura and os.path.exists(ruta_miniatura):
         youtube.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(ruta_miniatura)).execute()
         print("✅ Miniatura aplicada.")
-        
     if datos.get("comentario_fijado"):
         try:
-            youtube.commentThreads().insert(part="snippet", body={
-                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}
-            }).execute()
+            youtube.commentThreads().insert(part="snippet", body={"snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}}).execute()
             print("✅ Comentario fijado publicado.")
         except HttpError as e:
             print(f"⚠️ Error comentario: Debes regenerar tu token incluyendo 'youtube.force-ssl'")
-            
     return video_id
 
 # ================================================================
-# 8. MAIN (CON DETECCIÓN DE MODO)
+# 8. MAIN
 # ================================================================
 def main():
     try:
         tipo = os.getenv("TIPO_HOROSCOPO", "daily")
         ahora = datetime.now(TZ)
-        
         print(f"🤖 Modo detectado: {tipo.upper()}")
-        
         if tipo == "monthly":
             hora_final = ahora.replace(hour=12, minute=random.randint(0, 10), second=0, microsecond=0)
-            if ahora >= hora_final:
-                hora_final += timedelta(days=1)
+            if ahora >= hora_final: hora_final += timedelta(days=1)
         elif tipo == "weekly":
             hoy_inicio = ahora.replace(hour=9, minute=0, second=0, microsecond=0)
             hoy_fin = ahora.replace(hour=12, minute=0, second=0, microsecond=0)
-            if ahora >= hoy_fin:
-                hoy_inicio += timedelta(days=1); hoy_fin += timedelta(days=1)
+            if ahora >= hoy_fin: hoy_inicio += timedelta(days=1); hoy_fin += timedelta(days=1)
             minutos_a_sumar = random.randint(0, int((hoy_fin - hoy_inicio).total_seconds() / 60))
             hora_final = hoy_inicio + timedelta(minutes=minutos_a_sumar)
         else:
             hoy_inicio = ahora.replace(hour=5, minute=0, second=0, microsecond=0)
             hoy_fin = ahora.replace(hour=8, minute=0, second=0, microsecond=0)
-            if ahora >= hoy_fin:
-                hoy_inicio += timedelta(days=1); hoy_fin += timedelta(days=1)
+            if ahora >= hoy_fin: hoy_inicio += timedelta(days=1); hoy_fin += timedelta(days=1)
             minutos_a_sumar = random.randint(0, int((hoy_fin - hoy_inicio).total_seconds() / 60))
             hora_final = hoy_inicio + timedelta(minutes=minutos_a_sumar)
-
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        print(f" Programando para: {hora_final:%d-%m-%Y a las %H:%M} (CDMX)")
-        
+        print(f"🎯 Programando para: {hora_final:%d-%m-%Y a las %H:%M} (CDMX)")
         fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
         fase_lunar = "Creciente"
-        
         print(f"🧠 1. Generando contenido con DeepSeek (modo {tipo})...")
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
+        
+        # ✅ EXPANSIÓN AUTOMÁTICA DE GUIONES CORTOS
+        print("\n📝 1.5 Expandiendo guiones cortos si es necesario...")
+        datos = expandir_signos_cortos(datos, tipo)
+        
         if titulo_ya_publicado(datos["titulo"]):
             datos["titulo"] = f"{datos['titulo']} (Edición Especial)"
-            
         print("🎨 2. Generando activos (Imágenes y Audio)...")
         for i, signo in enumerate(datos["signos"]):
             print(f"   Procesando {signo['nombre']}...")
             obtener_imagen_segura(signo.get("visual_prompt", "mystical galaxy"), f"temp_signo_{i}.jpg")
             asyncio.run(generar_audio(signo["guion"], f"temp_audio_{i}.mp3"))
-            
         print("🖼️ 3. Creando miniatura 8K Élite...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "mystical zodiac wheel glowing 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
         crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "HORÓSCOPO HOY"), datos.get("miniatura_banner", "MENSAJE DEL UNIVERSO"), "miniatura.jpg")
-        
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
-        
-        print("📤 5. Subiendo a YouTube...")
+        print(" 5. Subiendo a YouTube...")
         video_id = subir_a_youtube("video_final.mp4", "miniatura.jpg", datos, hora_utc, tipo)
-            
         print(f"✨ ¡PROCESO COMPLETADO! Video programado para {hora_final:%H:%M} (CDMX)")
         guardar_titulo(datos["titulo"])
-        
         for f in os.listdir():
             if f.startswith("temp_") or f in ["video_final.mp4", "miniatura.jpg"]:
                 try: os.remove(f)
                 except: pass
-                
     except Exception as e:
         print(f"❌ ERROR FATAL: {e}")
         traceback.print_exc()
