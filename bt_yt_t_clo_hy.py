@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ROBUSTA
-Fix: Validación relajada + Expansión automática de guiones cortos
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN FINAL COMPLETA
+Fix: Nombres de signos en audio, Hashtags en descripción, Miniaturas brillantes,
+     Prompts obligan mencionar el signo, Tags ASCII puro, 3 modos (daily/weekly/monthly).
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -32,7 +33,7 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS INTELIGENTE (ASCII PURO)
+# 🏷️ MOTOR DE TAGS Y HASHTAGS
 # ================================================================
 TAGS_GENERALES_SIEMPRE = [
     "horoscopo", "horoscopo diario", "astrologia", "zodiaco", "tu cielo hoy",
@@ -47,6 +48,8 @@ TAGS_POR_MODO = {
     "monthly": ["horoscopo mensual", "horoscopo del mes", "prediccion mensual", "ciclo lunar"]
 }
 
+HASHTAGS_YOUTUBE = "\n\n#Horoscopo #Astrologia #Zodiaco #TuCieloHoy #MensajeDelUniverso #HoroscopoDeHoy #EnergiaDelDia #SignosDelZodiaco"
+
 def normalizar_ascii(texto):
     texto = unicodedata.normalize('NFKD', texto)
     texto = ''.join(c for c in texto if not unicodedata.combining(c))
@@ -55,7 +58,6 @@ def normalizar_ascii(texto):
 def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     tags_finales = []
     total_chars = 0
-    
     for tag in TAGS_GENERALES_SIEMPRE:
         tag_limpio = normalizar_ascii(tag).strip()
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
@@ -64,7 +66,6 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
             if total_chars + len(tag_limpio) + 1 <= 480:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
-    
     for tag in TAGS_POR_MODO.get(modo, []):
         tag_limpio = normalizar_ascii(tag).strip()
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
@@ -73,7 +74,6 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
             if total_chars + len(tag_limpio) + 1 <= 480:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
-    
     if isinstance(tags_dinamicos_ia, list):
         for tag in tags_dinamicos_ia:
             t = normalizar_ascii(str(tag)).strip()
@@ -83,20 +83,18 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
                 if total_chars + len(t) + 1 <= 480:
                     tags_finales.append(t)
                     total_chars += len(t) + 1
-    
     if not tags_finales:
         tags_finales = TAGS_GENERALES_SIEMPRE[:15]
-    
     print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars} caracteres")
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Versión Robusta)")
+print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (Versión Final Completa)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
-    print(" ERROR: Faltan variables de entorno en los Secrets de GitHub.")
+    print("❌ ERROR: Faltan variables de entorno en los Secrets de GitHub.")
     sys.exit(1)
 
 # ================================================================
@@ -130,41 +128,42 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - 3 PROMPTS + EXPANSIÓN AUTOMÁTICA
+# 3. IA (DEEPSEEK) - 3 PROMPTS CON REGLA DE MENCIONAR SIGNO
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
-REGLAS:
+REGLAS CRÍTICAS:
 1. TÍTULO: Estructura "Horóscopo HOY: [Gancho] | [Tránsito lunar]". Máx 65 chars.
 2. Cada signo debe tener texto TOTALMENTE ÚNICO.
 3. Descripción: 3 párrafos (Gancho, Entity stacking, CTA).
 4. Tags: 10 tags cortos específicos del día (máx 20 chars cada uno, SIN acentos).
 5. Comentario Fijado: Frase mística para decretar.
-6. Miniatura: Prompt en inglés (fondo místico oscuro) y 2-3 palabras MAYÚSCULAS.
-7. ⚠️ DURACIÓN CRÍTICA: Cada signo debe tener EXACTAMENTE 110-125 palabras. Esto es OBLIGATORIO.
-   Estructura: Energía general (30 palabras) + Amor (30 palabras) + Dinero (30 palabras) + Mantra final (5 palabras).
-   NO seas breve. Desarrolla cada sección con detalles específicos.
+6. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso, colores vibrantes, high key lighting) y 2-3 palabras MAYÚSCULAS.
+7. ⚠️ GUION DE AUDIO OBLIGATORIO: El guion DEBE comenzar EXPLÍCITAMENTE mencionando el nombre del signo.
+   Ejemplo: "Aries, hoy la energía te invita a..." o "Para ti, Tauro, este es un día de...".
+   Luego desarrolla: Energía, Amor, Dinero, Mantra. Total ~110-125 palabras por signo.
 
 Responde SOLO JSON:
 {{
   "titulo": "...", "descripcion": "...", "tags": ["tag1"], "comentario_fijado": "...",
-  "miniatura_prompt": "...", "miniatura_texto": "...", "miniatura_banner": "MENSAJE DEL UNIVERSO",
+  "miniatura_prompt": "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, magical atmosphere, 8k, no text",
+  "miniatura_texto": "...", "miniatura_banner": "MENSAJE DEL UNIVERSO",
   "signos": [
-    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "...", "visual_prompt": "red sunrise fire sparks"}},
-    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "...", "visual_prompt": "green forest sunlight"}},
-    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "...", "visual_prompt": "wind blowing trees"}},
-    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "...", "visual_prompt": "ocean waves calm"}},
-    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "...", "visual_prompt": "golden sunset"}},
-    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "...", "visual_prompt": "morning dew leaves"}},
-    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "...", "visual_prompt": "pink sunset clouds"}},
-    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "...", "visual_prompt": "deep ocean dark"}},
-    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "...", "visual_prompt": "mountain peak sunrise"}},
-    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Construcción Sólida", "guion": "...", "visual_prompt": "stone architecture"}},
-    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Innovadora", "guion": "...", "visual_prompt": "aurora borealis"}},
-    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Sueño Profético", "guion": "...", "visual_prompt": "underwater coral reef"}}
+    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "bright red sunrise fire sparks"}},
+    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "bright green forest sunlight"}},
+    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "bright wind blowing trees"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "bright ocean waves calm"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "bright golden sunset"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "bright morning dew leaves"}},
+    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "Libra, el equilibrio...", "visual_prompt": "bright pink sunset clouds"}},
+    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "Escorpio, tu intensidad...", "visual_prompt": "bright deep ocean mystical"}},
+    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "bright mountain peak sunrise"}},
+    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Construcción Sólida", "guion": "Capricornio, tu disciplina...", "visual_prompt": "bright stone architecture"}},
+    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Innovadora", "guion": "Acuario, tu originalidad...", "visual_prompt": "bright aurora borealis"}},
+    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Sueño Profético", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "bright underwater coral reef"}}
   ]
 }}
 """
@@ -174,33 +173,35 @@ Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místic
 Semana del {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo SEMANAL detallado para los 12 signos.
 
-REGLAS:
+REGLAS CRÍTICAS:
 1. TÍTULO: Estructura "Horóscopo SEMANAL: [Gancho fuerte] | [Semana clave]". Máx 70 chars.
 2. Cada signo debe tener texto TOTALMENTE ÚNICO y profundo.
 3. Descripción: 3 párrafos enfocados en tendencias de la semana.
 4. Tags: 10 tags específicos de la semana (máx 20 chars, SIN acentos).
 5. Comentario Fijado: Pregunta sobre la semana.
-6. Miniatura: Prompt en inglés y 2-3 palabras MAYÚSCULAS.
-7. ️ DURACIÓN CRÍTICA: Cada signo debe tener EXACTAMENTE 200-220 palabras.
-   Estructura: Tendencia general (50 palabras) + Amor semana (50 palabras) + Dinero semana (50 palabras) + Día clave (30 palabras) + Mantra (10 palabras).
+6. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso) y 2-3 palabras MAYÚSCULAS.
+7. ⚠️ GUION DE AUDIO OBLIGATORIO: El guion DEBE comenzar EXPLÍCITAMENTE mencionando el nombre del signo.
+   Ejemplo: "Aries, esta semana Marte te impulsa a...".
+   Luego desarrolla: Tendencia general, Amor, Dinero, Día clave, Mantra. Total ~200-220 palabras por signo.
 
 Responde SOLO JSON:
 {{
   "titulo": "...", "descripcion": "...", "tags": ["tag1"], "comentario_fijado": "...",
-  "miniatura_prompt": "...", "miniatura_texto": "...", "miniatura_banner": "SEMANA CLAVE",
+  "miniatura_prompt": "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k, no text",
+  "miniatura_texto": "...", "miniatura_banner": "SEMANA CLAVE",
   "signos": [
-    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Semana de Acción", "guion": "...", "visual_prompt": "red sunrise fire sparks"}},
-    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Semana de Cosecha", "guion": "...", "visual_prompt": "green forest sunlight"}},
-    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Semana de Cambios", "guion": "...", "visual_prompt": "wind blowing trees"}},
-    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Semana Emocional", "guion": "...", "visual_prompt": "ocean waves calm"}},
-    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Semana de Brillo", "guion": "...", "visual_prompt": "golden sunset"}},
-    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Semana de Orden", "guion": "...", "visual_prompt": "morning dew leaves"}},
-    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Semana de Equilibrio", "guion": "...", "visual_prompt": "pink sunset clouds"}},
-    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Semana de Poder", "guion": "...", "visual_prompt": "deep ocean dark"}},
-    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Semana de Aventura", "guion": "...", "visual_prompt": "mountain peak sunrise"}},
-    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Semana de Metas", "guion": "...", "visual_prompt": "stone architecture"}},
-    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Semana de Innovación", "guion": "...", "visual_prompt": "aurora borealis"}},
-    {{"nombre": "Piscis", "simbolo": "", "titulo_cap": "Semana de Intuición", "guion": "...", "visual_prompt": "underwater coral reef"}}
+    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Semana de Acción", "guion": "Aries, esta semana...", "visual_prompt": "bright red sunrise fire sparks"}},
+    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Semana de Cosecha", "guion": "Tauro, esta semana...", "visual_prompt": "bright green forest sunlight"}},
+    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Semana de Cambios", "guion": "Géminis, esta semana...", "visual_prompt": "bright wind blowing trees"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Semana Emocional", "guion": "Cáncer, esta semana...", "visual_prompt": "bright ocean waves calm"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Semana de Brillo", "guion": "Leo, esta semana...", "visual_prompt": "bright golden sunset"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Semana de Orden", "guion": "Virgo, esta semana...", "visual_prompt": "bright morning dew leaves"}},
+    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Semana de Equilibrio", "guion": "Libra, esta semana...", "visual_prompt": "bright pink sunset clouds"}},
+    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Semana de Poder", "guion": "Escorpio, esta semana...", "visual_prompt": "bright deep ocean mystical"}},
+    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Semana de Aventura", "guion": "Sagitario, esta semana...", "visual_prompt": "bright mountain peak sunrise"}},
+    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Semana de Metas", "guion": "Capricornio, esta semana...", "visual_prompt": "bright stone architecture"}},
+    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Semana de Innovación", "guion": "Acuario, esta semana...", "visual_prompt": "bright aurora borealis"}},
+    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Semana de Intuición", "guion": "Piscis, esta semana...", "visual_prompt": "bright underwater coral reef"}}
   ]
 }}
 """
@@ -210,33 +211,35 @@ Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místic
 Mes de {fecha}. Fase Lunar dominante: {fase_lunar}.
 Genera horóscopo MENSUAL PROFUNDO para los 12 signos.
 
-REGLAS:
+REGLAS CRÍTICAS:
 1. TÍTULO: Estructura "PREDICCIÓN MENSUAL [Mes]: [Gancho épico] | [Evento astral]". Máx 75 chars.
 2. Cada signo debe tener texto TOTALMENTE ÚNICO, profundo y detallado.
 3. Descripción: 3 párrafos sobre el ciclo mensual completo.
 4. Tags: 10 tags específicos del mes (máx 20 chars, SIN acentos).
 5. Comentario Fijado: Decreto mensual.
-6. Miniatura: Prompt en inglés y 2-3 palabras MAYÚSCULAS.
-7. ️ DURACIÓN CRÍTICA: Cada signo debe tener EXACTAMENTE 350-400 palabras.
-   Estructura: Ciclo completo (80 palabras) + Fechas clave de suerte (60 palabras) + Amor mes (70 palabras) + Dinero mes (70 palabras) + Reto del mes (50 palabras) + Mantra mensual (20 palabras).
+6. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso) y 2-3 palabras MAYÚSCULAS.
+7. ⚠️ GUION DE AUDIO OBLIGATORIO: El guion DEBE comenzar EXPLÍCITAMENTE mencionando el nombre del signo.
+   Ejemplo: "Aries, este octubre será tu mes de transformación porque...".
+   Luego desarrolla: Ciclo completo, Fechas clave, Amor, Dinero, Reto, Mantra. Total ~350-400 palabras por signo.
 
 Responde SOLO JSON:
 {{
   "titulo": "...", "descripcion": "...", "tags": ["tag1"], "comentario_fijado": "...",
-  "miniatura_prompt": "...", "miniatura_texto": "...", "miniatura_banner": "PREDICCIÓN MENSUAL",
+  "miniatura_prompt": "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k, no text",
+  "miniatura_texto": "...", "miniatura_banner": "PREDICCIÓN MENSUAL",
   "signos": [
-    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Mes de Conquista", "guion": "...", "visual_prompt": "red sunrise fire sparks"}},
-    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Mes de Abundancia", "guion": "...", "visual_prompt": "green forest sunlight"}},
-    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Mes de Transformación", "guion": "...", "visual_prompt": "wind blowing trees"}},
-    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Mes de Sanación", "guion": "...", "visual_prompt": "ocean waves calm"}},
-    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Mes de Coronación", "guion": "...", "visual_prompt": "golden sunset"}},
-    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Mes de Perfección", "guion": "...", "visual_prompt": "morning dew leaves"}},
-    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Mes de Armonía", "guion": "...", "visual_prompt": "pink sunset clouds"}},
-    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Mes de Renacimiento", "guion": "...", "visual_prompt": "deep ocean dark"}},
-    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Mes de Expansión", "guion": "...", "visual_prompt": "mountain peak sunrise"}},
-    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Mes de Logros", "guion": "...", "visual_prompt": "stone architecture"}},
-    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Mes de Revolución", "guion": "...", "visual_prompt": "aurora borealis"}},
-    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Mes de Despertar", "guion": "...", "visual_prompt": "underwater coral reef"}}
+    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Mes de Conquista", "guion": "Aries, este mes...", "visual_prompt": "bright red sunrise fire sparks"}},
+    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Mes de Abundancia", "guion": "Tauro, este mes...", "visual_prompt": "bright green forest sunlight"}},
+    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Mes de Transformación", "guion": "Géminis, este mes...", "visual_prompt": "bright wind blowing trees"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Mes de Sanación", "guion": "Cáncer, este mes...", "visual_prompt": "bright ocean waves calm"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Mes de Coronación", "guion": "Leo, este mes...", "visual_prompt": "bright golden sunset"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Mes de Perfección", "guion": "Virgo, este mes...", "visual_prompt": "bright morning dew leaves"}},
+    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Mes de Armonía", "guion": "Libra, este mes...", "visual_prompt": "bright pink sunset clouds"}},
+    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Mes de Renacimiento", "guion": "Escorpio, este mes...", "visual_prompt": "bright deep ocean mystical"}},
+    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Mes de Expansión", "guion": "Sagitario, este mes...", "visual_prompt": "bright mountain peak sunrise"}},
+    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Mes de Logros", "guion": "Capricornio, este mes...", "visual_prompt": "bright stone architecture"}},
+    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Mes de Revolución", "guion": "Acuario, este mes...", "visual_prompt": "bright aurora borealis"}},
+    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Mes de Despertar", "guion": "Piscis, este mes...", "visual_prompt": "bright underwater coral reef"}}
   ]
 }}
 """
@@ -244,17 +247,12 @@ Responde SOLO JSON:
 def expandir_guion_corto(signo_nombre, guion_actual, modo):
     """Usa DeepSeek para expandir un guion que es demasiado corto."""
     palabras_actuales = len(guion_actual.split())
-    
     if modo == "daily":
-        target = 115
         prompt_extra = f"El guion actual tiene {palabras_actuales} palabras. Necesita llegar a 115 palabras. Añade más detalles sobre energía, amor y dinero."
     elif modo == "weekly":
-        target = 210
         prompt_extra = f"El guion actual tiene {palabras_actuales} palabras. Necesita llegar a 210 palabras. Expande cada sección con más detalles."
     else:
-        target = 375
         prompt_extra = f"El guion actual tiene {palabras_actuales} palabras. Necesita llegar a 375 palabras. Desarrolla profundamente cada aspecto."
-    
     prompt = f"""
 Eres la astróloga más prestigiosa de YouTube. Necesitas EXPANDIR este guion de {signo_nombre}:
 
@@ -266,16 +264,12 @@ GUION ACTUAL:
 Mantén el mismo tono místico y cálido. NO repitas lo que ya está escrito. Añade contenido nuevo y relevante.
 Devuelve SOLO el guion expandido, sin comillas, sin explicaciones adicionales.
 """
-    
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "max_tokens": 500}
-    
     try:
         r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
         r.raise_for_status()
         texto_expandido = r.json()["choices"][0]["message"]["content"].strip()
-        
-        # Combinar guion original con expansión
         guion_final = f"{guion_actual} {texto_expandido}"
         palabras_finales = len(guion_final.split())
         print(f"   ✅ {signo_nombre} expandido: {palabras_actuales} → {palabras_finales} palabras")
@@ -287,61 +281,51 @@ Devuelve SOLO el guion expandido, sin comillas, sin explicaciones adicionales.
 def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     if modo == "weekly":
         prompt = PROMPT_SEMANAL.format(fecha=fecha, fase_lunar=fase_lunar)
-        min_palabras = 150  # Mínimo relajado (target 200-220)
+        min_palabras = 150
     elif modo == "monthly":
         prompt = PROMPT_MENSUAL.format(fecha=fecha, fase_lunar=fase_lunar)
-        min_palabras = 250  # Mínimo relajado (target 350-400)
+        min_palabras = 250
     else:
         prompt = PROMPT_DIARIO.format(fecha=fecha, fase_lunar=fase_lunar)
-        min_palabras = 70  # ✅ MÍNIMO RELAJADO (target 110-125)
-    
+        min_palabras = 70
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "response_format": {"type": "json_object"}}
-    
     for i in range(3):
         try:
             print(f"    Intento {i+1}/3 con DeepSeek (modo {modo})...")
             r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=180)
             r.raise_for_status()
             datos = parsear_json(r.json()["choices"][0]["message"]["content"].strip())
-            
             if len(datos.get("signos", [])) != 12:
                 raise ValueError(f"La IA solo generó {len(datos.get('signos', []))} signos.")
-            
             nombres_generados = [s["nombre"].lower() for s in datos["signos"]]
             nombres_esperados = ["aries", "tauro", "géminis", "cáncer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"]
             if set(nombres_generados) != set(nombres_esperados):
                 raise ValueError("La IA repitió signos o faltan algunos.")
-            
-            # ✅ VALIDACIÓN RELAJADA: Solo rechazamos si es MUY corto (menos de 50 palabras)
             signos_muy_cortos = [s for s in datos["signos"] if len(s["guion"].split()) < 50]
             if signos_muy_cortos:
                 raise ValueError(f"{len(signos_muy_cortos)} signos tienen menos de 50 palabras.")
-                
             return datos
         except Exception as e:
-            print(f"️ DeepSeek intento {i+1} falló: {e}")
+            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(3)
     raise Exception("Fallo DeepSeek tras 3 intentos")
 
 def expandir_signos_cortos(datos, modo):
     """Expande automáticamente los signos que tienen menos palabras de las ideales."""
     if modo == "daily":
-        umbral_expansion = 90  # Expandir si tiene menos de 90 palabras
+        umbral_expansion = 90
     elif modo == "weekly":
         umbral_expansion = 150
     else:
         umbral_expansion = 280
-    
-    print(f"\n📝 Verificando longitud de guiones (umbral: {umbral_expansion} palabras)...")
-    
+    print(f"\n Verificando longitud de guiones (umbral: {umbral_expansion} palabras)...")
     for signo in datos["signos"]:
         palabras = len(signo["guion"].split())
         if palabras < umbral_expansion:
             print(f"   ⚠️ {signo['nombre']} tiene {palabras} palabras (mínimo {umbral_expansion}). Expandiendo...")
             signo["guion"] = expandir_guion_corto(signo["nombre"], signo["guion"], modo)
-            time.sleep(1)  # Pausa para no saturar la API
-    
+            time.sleep(1)
     return datos
 
 # ================================================================
@@ -351,7 +335,7 @@ def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
     clean_prompt = re.sub(r'[^a-zA-Z0-9\s,]', ' ', prompt)[:200]
-    enhanced_prompt = f"{clean_prompt}, 8k, vivid colors, cinematic lighting, no text"
+    enhanced_prompt = f"{clean_prompt}, 8k, vivid bright colors, cinematic lighting, no text"
     payload = {"prompt": enhanced_prompt, "steps": 4}
     r = requests.post(url, headers=headers, json=payload, timeout=60)
     if r.status_code == 400:
@@ -391,13 +375,13 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
             time.sleep(2)
     print("   ⚠️ Activando Pexels...")
     try:
-        query = prompt + " mystical cosmic" if es_miniatura else prompt
+        query = prompt + " bright vibrant mystical" if es_miniatura else prompt + " vivid cinematic"
         return generar_pexels(query, ruta)
     except:
         return None
 
 # ================================================================
-# 5. AUDIO Y MINIATURAS NEÓN 8K
+# 5. AUDIO Y MINIATURAS BRILLANTES 8K
 # ================================================================
 async def generar_audio(texto, ruta):
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-4%").save(ruta)
@@ -410,8 +394,9 @@ def render_texto_gradiente_8k(texto, font_path, size):
     out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     d = ImageDraw.Draw(out)
     cx, cy = 20 - b[0], 20 - b[1]
-    d.text((cx, cy), texto, font=font, fill=(0, 0, 0), stroke_width=14, stroke_fill=(0, 0, 0))
-    d.text((cx, cy), texto, font=font, fill=(128, 0, 128), stroke_width=8, stroke_fill=(128, 0, 128))
+    # Contorno BLANCO + NEGRO para que resalte en fondos brillantes
+    d.text((cx, cy), texto, font=font, fill=(0, 0, 0), stroke_width=16, stroke_fill=(255, 255, 255))
+    d.text((cx, cy), texto, font=font, fill=(128, 0, 128), stroke_width=10, stroke_fill=(128, 0, 128))
     d.text((cx, cy), texto, font=font, fill=(255, 255, 0))
     glow = out.filter(ImageFilter.GaussianBlur(radius=6))
     return Image.alpha_composite(glow, out)
@@ -424,23 +409,18 @@ def render_banner_grafico(texto, font_path, size):
     d = ImageDraw.Draw(img)
     d.rounded_rectangle([10, 14, w + 10, h + 14], radius=16, fill=(0, 0, 0, 180))
     d.rounded_rectangle([10, 10, w + 10, h + 10], radius=16, fill=(220, 20, 60, 255))
-    d.rounded_rectangle([10, 10, w + 10, h + 10], radius=16, outline=(255, 215, 0, 255), width=4)
+    d.rounded_rectangle([10, 10, w + 10, h + 10], radius=16, outline=(255, 255, 255, 255), width=4)
     d.text((10 + 30 - b[0], 10 + 15 - b[1]), texto, font=font, fill=(255, 255, 255, 255))
     return img
 
 def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
     try:
         img = Image.open(img_path).convert("RGB").resize((1280, 720))
-        img = ImageEnhance.Brightness(img).enhance(0.5)
-        img = ImageEnhance.Contrast(img).enhance(1.4)
-        img = ImageEnhance.Color(img).enhance(1.3)
+        # ✅ MINIATURA BRILLANTE: Subimos brillo y color, sin viñeta oscura pesada
+        img = ImageEnhance.Brightness(img).enhance(1.15)
+        img = ImageEnhance.Contrast(img).enhance(1.2)
+        img = ImageEnhance.Color(img).enhance(1.6)
         img = img.convert("RGBA")
-        vignette = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
-        draw_vig = ImageDraw.Draw(vignette)
-        for x in range(400):
-            draw_vig.line([(x, 0), (x, 720)], fill=(0, 0, 0, int(200 * (1 - x/400))))
-            draw_vig.line([(1280-x, 0), (1280-x, 720)], fill=(0, 0, 0, int(200 * (1 - x/400))))
-        img = Image.alpha_composite(img, vignette)
         fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         bloque1 = render_texto_gradiente_8k(texto_principal, fuente, 130)
         bloque1 = bloque1.rotate(3, expand=True, resample=Image.BICUBIC)
@@ -453,7 +433,7 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         img.paste(bloque1, (x1, y1), bloque1)
         img.paste(bloque2, (x2, y2), bloque2)
         img.convert("RGB").save(salida, "JPEG", quality=95)
-        print(f"✅ Miniatura 8K Élite generada: {salida}")
+        print(f"✅ Miniatura 8K Brillante generada: {salida}")
         return True
     except Exception as e:
         print(f"⚠️ Error en miniatura 8K: {e}")
@@ -463,7 +443,7 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
 # 6. RENDER DE VIDEO (KEN BURNS + MÚSICA ALEATORIA)
 # ================================================================
 _VIG = {}
-def vignette(size, base=1.0, fuerza=0.6):
+def vignette(size, base=1.0, fuerza=0.4):
     k = (size, base)
     if k not in _VIG:
         w, h = size
@@ -478,7 +458,6 @@ class RenderEscenas:
         self.starts = [e["inicio"] for e in escenas]
         self._ikey = self._img = None
         self.vig = vignette(size, 1.0)
-
     def _base(self, e):
         key = (e["path"], e["etapa"])
         if self._ikey != key:
@@ -489,7 +468,6 @@ class RenderEscenas:
             arr = np.asarray(im, dtype=np.float32) * vignette(sz, 1.0)
             self._img, self._ikey = Image.fromarray(arr.astype(np.uint8)), key
         return self._img
-
     def frame(self, t):
         i = max(0, bisect.bisect_right(self.starts, t) - 1)
         e = self.esc[i]
@@ -529,7 +507,6 @@ def renderizar_video(signos_data, salida):
         img.save(f"temp_frame_{i}.jpg")
         escenas.append({"path": f"temp_frame_{i}.jpg", "inicio": t_total, "dur": dur, "etapa": "mystic", "fade": i==0, "zin": i%2==0, "ax": random.uniform(-1, 1), "ay": random.uniform(-1, 1)})
         t_total += dur
-
     render = RenderEscenas(escenas, (W, H), t_total)
     video = VideoClip(render.frame, duration=t_total)
     clips_audio = [AudioFileClip(e["path"].replace("temp_frame_", "temp_audio_").replace(".jpg", ".mp3")).set_start(e["inicio"]) for e in escenas]
@@ -550,7 +527,7 @@ def renderizar_video(signos_data, salida):
     return salida
 
 # ================================================================
-# 7. SUBIDA A YOUTUBE
+# 7. SUBIDA A YOUTUBE (CON HASHTAGS)
 # ================================================================
 def obtener_credenciales_youtube():
     yt_token = json.loads(YT_TOKEN_STR)
@@ -567,7 +544,7 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
     caps = []
     for i, s in enumerate(datos["signos"]):
         audio_path = f"temp_audio_{i}.mp3"
-        duracion_real = 35.0 
+        duracion_real = 35.0
         if os.path.exists(audio_path):
             try: duracion_real = AudioFileClip(audio_path).duration
             except: pass
@@ -575,7 +552,9 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         secs = int(tiempo_acumulado % 60)
         caps.append(f"{mins:02d}:{secs:02d} {s['simbolo']} {s['nombre']}: {s['titulo_cap']}")
         tiempo_acumulado += duracion_real + 0.5
+    # ✅ AÑADIR HASHTAGS AL FINAL DE LA DESCRIPCIÓN
     desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete: {CANAL_LINK}"
+    desc += HASHTAGS_YOUTUBE
     tags_finales = construir_tags_finales(datos.get("tags", []), modo)
     body = {
         "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": tags_finales, "categoryId": "22", "defaultLanguage": "es", "defaultAudioLanguage": "es"},
@@ -636,20 +615,19 @@ def main():
         fase_lunar = "Creciente"
         print(f"🧠 1. Generando contenido con DeepSeek (modo {tipo})...")
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
-        
-        # ✅ EXPANSIÓN AUTOMÁTICA DE GUIONES CORTOS
         print("\n📝 1.5 Expandiendo guiones cortos si es necesario...")
         datos = expandir_signos_cortos(datos, tipo)
-        
         if titulo_ya_publicado(datos["titulo"]):
             datos["titulo"] = f"{datos['titulo']} (Edición Especial)"
-        print("🎨 2. Generando activos (Imágenes y Audio)...")
+        print(" 2. Generando activos (Imágenes y Audio)...")
         for i, signo in enumerate(datos["signos"]):
             print(f"   Procesando {signo['nombre']}...")
-            obtener_imagen_segura(signo.get("visual_prompt", "mystical galaxy"), f"temp_signo_{i}.jpg")
-            asyncio.run(generar_audio(signo["guion"], f"temp_audio_{i}.mp3"))
-        print("🖼️ 3. Creando miniatura 8K Élite...")
-        obtener_imagen_segura(datos.get("miniatura_prompt", "mystical zodiac wheel glowing 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
+            obtener_imagen_segura(signo.get("visual_prompt", "bright mystical galaxy"), f"temp_signo_{i}.jpg")
+            # ✅ SEGURO: Forzamos que el audio empiece con el nombre del signo
+            guion_con_nombre = f"{signo['nombre']}. {signo['guion']}"
+            asyncio.run(generar_audio(guion_con_nombre, f"temp_audio_{i}.mp3"))
+        print("🖼️ 3. Creando miniatura 8K Brillante...")
+        obtener_imagen_segura(datos.get("miniatura_prompt", "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
         crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "HORÓSCOPO HOY"), datos.get("miniatura_banner", "MENSAJE DEL UNIVERSO"), "miniatura.jpg")
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
