@@ -1,16 +1,20 @@
-name: Bot Horóscopo Diario (Tu Cielo Hoy)
+name: Bot Horóscopo Master (Tu Cielo Hoy)
 
 on:
   schedule:
-    # Ejecutar todos los días a las 10:00 AM UTC (4:00 AM CDMX)
+    # 1. DIARIO: Todos los días a las 10:00 AM UTC (4:00 AM CDMX) -> Publica 5-8 AM
     - cron: '0 10 * * *'
-  workflow_dispatch: # Permite ejecutarlo manualmente con un botón desde GitHub
+    # 2. SEMANAL: Lunes a las 13:00 PM UTC (7:00 AM CDMX) -> Publica 9-12 AM
+    - cron: '0 13 * * 1'
+    # 3. MENSUAL: Día 1 de cada mes a las 13:00 PM UTC (7:00 AM CDMX) -> Publica 9-12 AM
+    - cron: '0 13 1 * *'
+  workflow_dispatch: # Para pruebas manuales
 
 jobs:
   generate-and-upload:
     runs-on: ubuntu-latest
     
-    # Inyectar los Secrets como variables de entorno globales
+    # Inyectar Secrets
     env:
       DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
       PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
@@ -19,45 +23,60 @@ jobs:
       YOUTUBE_USER_TOKEN: ${{ secrets.YOUTUBE_USER_TOKEN }}
 
     steps:
-      - name: 📥 Clonar repositorio
+      - name:  Clonar repositorio
         uses: actions/checkout@v4
 
-      - name:  Configurar Python
+      - name: 🐍 Configurar Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      - name:  Verificar que existen los Secrets (Modo Seguro)
+      - name: 🧠 Detectar Tipo de Horóscopo (Lógica Camaleón)
+        run: |
+          # Obtener fecha actual en UTC
+          DAY_OF_MONTH=$(date -u +%d)
+          DAY_OF_WEEK=$(date -u +%u) # 1=Lunes, 7=Domingo
+          
+          # Lógica de prioridad: Mensual > Semanal > Diario
+          if [ "$DAY_OF_MONTH" = "01" ]; then
+            echo "TIPO_HOROSCOPO=monthly" >> $GITHUB_ENV
+            echo " Hoy es día 1: Modo MENSUAL activado"
+          elif [ "$DAY_OF_WEEK" = "1" ]; then
+            echo "TIPO_HOROSCOPO=weekly" >> $GITHUB_ENV
+            echo "📅 Hoy es Lunes: Modo SEMANAL activado"
+          else
+            echo "TIPO_HOROSCOPO=daily" >> $GITHUB_ENV
+            echo " Modo DIARIO activado"
+          fi
+
+      - name: 🔒 Verificar Secrets
         run: |
           python -c "
           import os, sys
           keys = ['DEEPSEEK_API_KEY', 'PEXELS_API_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN', 'YOUTUBE_USER_TOKEN']
           missing = [k for k in keys if not os.getenv(k)]
           if missing:
-              print(f'❌ Faltan secrets en GitHub: {missing}')
+              print(f'❌ Faltan secrets: {missing}')
               sys.exit(1)
-          print('✅ Todas las variables de entorno están presentes y listas.')
+          print('✅ Variables listas.')
           "
 
-      - name: 📦 Instalar FFmpeg (Necesario para MoviePy)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+      - name: 📦 Instalar FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: 📦 Instalar dependencias de Python
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+      - name: 📦 Instalar dependencias
+        run: pip install -r requirements.txt
 
-      - name: 🔮 Ejecutar Bot (Tu Cielo Hoy)
+      - name: 🔮 Ejecutar Bot (Modo: ${{ env.TIPO_HOROSCOPO }})
+        env:
+          TIPO_HOROSCOPO: ${{ env.TIPO_HOROSCOPO }}
         run: python bt_yt_t_clo_hy.py
 
-      - name: 📤 Subir archivos de diagnóstico (Solo si falla)
+      - name:  Subir logs si falla
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: bot-error-logs
+          name: error-logs-${{ env.TIPO_HOROSCOPO }}
           path: |
             temp_*.jpg
             temp_*.mp3
-            *.log
