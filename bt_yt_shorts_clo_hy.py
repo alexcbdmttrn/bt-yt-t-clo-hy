@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy)
-Estrategia: 1 Short = 1 Signo, 4 Shorts al día, CTA al video largo.
+Estrategia: 1 Short = 1 Signo, 2 Shorts al día (6AM y 9AM CDMX).
 Imágenes: Cloudflare (1 intento) → Pexels (fallback).
+Video relacionado: Último video largo del canal enlazado automáticamente.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -33,17 +34,17 @@ ESTADO_FILE = "estado_shorts.json"
 W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
 SIGNOS_INFO = [
-    {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
+    {"nombre": "Aries", "simbolo": "", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
-    {"nombre": "Géminis", "simbolo": "", "elemento": "aire"},
+    {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
     {"nombre": "Sagitario", "simbolo": "♐", "elemento": "fuego"},
     {"nombre": "Capricornio", "simbolo": "♑", "elemento": "tierra"},
-    {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
+    {"nombre": "Acuario", "simbolo": "", "elemento": "aire"},
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
@@ -68,8 +69,8 @@ def construir_tags_shorts(signo):
     return [t for t in tags_base if 2 <= len(t) <= 30][:15]
 
 print("=" * 70)
-print(" BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo")
-print(f" {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
+print(" BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (2 diarios)")
+print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
@@ -131,12 +132,11 @@ def buscar_ultimo_video_largo():
         response = request.execute()
         for item in response.get("items", []):
             video_id = item["id"]["videoId"]
-            # Verificar que sea un video largo (no Short)
             stats = youtube.videos().list(part="contentDetails,snippet", id=video_id).execute()
             if stats.get("items"):
                 duration = stats["items"][0]["contentDetails"]["duration"]
-                # Si la duración es mayor a 60 segundos, es un video largo
-                if "M" in duration or "PT60S" != duration:
+                # Si la duración contiene "M" (minutos), es un video largo (>60 seg)
+                if "M" in duration:
                     title = stats["items"][0]["snippet"]["title"]
                     print(f"🎬 Último video largo detectado: {title[:50]}...")
                     return video_id
@@ -171,7 +171,7 @@ Responde SOLO JSON:
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
-  "visual_prompt": "vertical mystical [elemento] energy, vibrant glowing, 8k, cinematic"
+  "visual_prompt": "vertical mystical {elemento} energy, vibrant glowing, 8k, cinematic"
 }}
 """
 
@@ -258,7 +258,7 @@ def generar_cf_vertical(prompt, ruta):
         return ruta
         
     except Exception as e:
-        print(f"    Cloudflare falló: {e}")
+        print(f"   ❌ Cloudflare falló: {e}")
         raise
 
 def generar_pexels_vertical(query, ruta):
@@ -292,7 +292,7 @@ def obtener_imagen_short(prompt, ruta):
         query = prompt + " mystical cosmic vibrant"
         return generar_pexels_vertical(query, ruta)
     except Exception as e:
-        print(f"    Pexels también falló: {e}")
+        print(f"   ❌ Pexels también falló: {e}")
         return None
 
 # ================================================================
@@ -301,18 +301,6 @@ def obtener_imagen_short(prompt, ruta):
 async def generar_audio(texto, ruta):
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%").save(ruta)
     return os.path.getsize(ruta) > 500
-
-def render_texto_vertical(texto, font_path, size, color=(255, 255, 0)):
-    font = ImageFont.truetype(font_path, size)
-    b = font.getbbox(texto)
-    w, h = (b[2] - b[0]) + 40, (b[3] - b[1]) + 40
-    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(out)
-    cx, cy = 20 - b[0], 20 - b[1]
-    d.text((cx, cy), texto, font=font, fill=(0, 0, 0), stroke_width=14, stroke_fill=(0, 0, 0))
-    d.text((cx, cy), texto, font=font, fill=color, stroke_width=6, stroke_fill=color)
-    glow = out.filter(ImageFilter.GaussianBlur(radius=4))
-    return Image.alpha_composite(glow, out)
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
@@ -387,14 +375,14 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
             if bg.duration < dur:
                 bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
             audio_final = CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)])
-            print(f"🎵 Música de fondo: {musica}")
+            print(f" Música de fondo: {musica}")
         except:
             audio_final = audio
     else:
         audio_final = audio
     
     video = video.set_audio(audio_final)
-    print("🎬 Renderizando Short vertical...")
+    print(" Renderizando Short vertical...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", 
                          threads=4, preset="ultrafast", logger=None)
     return salida
@@ -457,7 +445,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
             }).execute()
             print("✅ Comentario fijado publicado.")
         except HttpError as e:
-            print(f"️ Error comentario: {e}")
+            print(f"⚠️ Error comentario: {e}")
     
     return video_id
 
@@ -474,9 +462,9 @@ def main():
         signo, reinicio = elegir_siguiente_signo(estado)
         print(f"🎯 Signo elegido: {signo['simbolo']} {signo['nombre']}")
         
-        # Programar publicación (30-45 min después de la hora en punto)
-        minutos_extra = random.randint(0, 15)
-        hora_final = ahora.replace(minute=minutos_extra, second=0, microsecond=0) + timedelta(minutes=15)
+        # Programar publicación (15-30 min después de la hora de activación)
+        minutos_extra = random.randint(15, 30)
+        hora_final = ahora + timedelta(minutes=minutos_extra)
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
         print(f"📅 Programado para: {hora_final:%H:%M} (CDMX)")
         
@@ -499,7 +487,7 @@ def main():
         renderizar_short(signo, datos["guion"], "temp_short_img.jpg", "temp_short_audio.mp3", "short_final.mp4")
         
         # Subir a YouTube
-        print(" 4. Subiendo a YouTube...")
+        print("📤 4. Subiendo a YouTube...")
         subir_short_youtube("short_final.mp4", datos, signo, video_largo_id, hora_utc)
         
         # Actualizar estado
