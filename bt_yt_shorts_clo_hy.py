@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy)
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN SEO VIDIO
 Estrategia: 1 Short = 1 Signo, 2 Shorts al día (6AM y 9AM CDMX).
+Títulos estilo VidIQ SEO experto, duración 25+ segundos.
 Imágenes: Cloudflare (1 intento) → Pexels (fallback).
 Video relacionado: Último video largo del canal enlazado automáticamente.
 """
@@ -34,7 +35,7 @@ ESTADO_FILE = "estado_shorts.json"
 W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
 SIGNOS_INFO = [
-    {"nombre": "Aries", "simbolo": "", "elemento": "fuego"},
+    {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
     {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
@@ -49,27 +50,41 @@ SIGNOS_INFO = [
 ]
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS Y HASHTAGS PARA SHORTS
+# 🏷️ MOTOR DE TAGS SEO EXPERTO (ALTO PUNTAJE VIDIO)
 # ================================================================
 HASHTAGS_SHORTS = "\n\n#shorts #horoscopo #zodiaco #astrologia #tucielhoy #mensajeDelUniverso #energiaDelDia"
+
+# Palabras clave SEO de alto volumen que VidIQ recomienda
+PALABRAS_CLAVE_ALTO_IMPACTO = [
+    "señales", "secretos", "mensaje urgente", "no ignores",
+    "el universo", "energía", "dinero", "amor", "pasión",
+    "cosmos", "predicción", "alerta", "revelación", "destino"
+]
 
 def normalizar_ascii(texto):
     texto = unicodedata.normalize('NFKD', texto)
     texto = ''.join(c for c in texto if not unicodedata.combining(c))
     return texto.lower()
 
-def construir_tags_shorts(signo):
-    tags_base = [
+def construir_tags_shorts_experto(signo):
+    """Tags SEO experto con palabras de alto volumen de búsqueda."""
+    signo_norm = normalizar_ascii(signo["nombre"])
+    tags_expertos = [
         "shorts", "horoscopo", "horoscopo de hoy", "zodiaco", "astrologia",
         "tu cielo hoy", "mensaje del universo", "energia del dia",
-        normalizar_ascii(signo["nombre"]), f"horoscopo {normalizar_ascii(signo['nombre'])}",
-        f"{normalizar_ascii(signo['nombre'])} hoy", "prediccion", "signos del zodiaco",
-        "crecimiento espiritual", "mantra", "fase lunar"
+        signo_norm, f"horoscopo {signo_norm}", f"{signo_norm} hoy",
+        "prediccion zodiacal", "signos del zodiaco", "crecimiento espiritual",
+        "mantra del dia", "fase lunar", "amor y dinero", "señales del universo",
+        "secretos del cosmos", "energia zodiacal", "alerta zodiacal",
+        f"horoscopo {signo_norm} amor", f"horoscopo {signo_norm} dinero",
+        "mensaje urgente zodiaco", "revelacion cosmica"
     ]
-    return [t for t in tags_base if 2 <= len(t) <= 30][:15]
+    # Filtrar tags válidos (2-30 chars) y tomar los 15 más fuertes
+    tags_validos = [t for t in tags_expertos if 2 <= len(t) <= 30]
+    return tags_validos[:15]
 
 print("=" * 70)
-print(" BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (2 diarios)")
+print("📱 BT_YT_SHORTS_CLO_HY SEO EXPERTO - Bot Shorts Horóscopo")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -146,28 +161,40 @@ def buscar_ultimo_video_largo():
         return None
 
 # ================================================================
-# 4. IA (DEEPSEEK) - PROMPT PARA SHORTS
+# 4. IA (DEEPSEEK) - PROMPT SEO EXPERTO ESTILO VIDIO
 # ================================================================
-PROMPT_SHORT = """
-Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico, URGENTE.
-Fecha: {fecha}. Signo: {signo} ({simbolo}).
+PROMPT_SHORT_SEO = """
+Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO. Tono: femenino, cálido, místico, URGENTE.
+Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
-Genera un guion para un YouTube SHORT de 20-25 segundos sobre {signo}.
+Genera un guion para un YouTube SHORT de 25-30 segundos sobre {signo}.
 
-REGLAS CRÍTICAS:
-1. TÍTULO: Máx 55 caracteres. Debe ser llamativo con emojis. Ej: "♈ ARIES: Mensaje URGENTE 🔮"
-2. GUION: EXACTAMENTE 45-55 palabras. Estructura:
-   - Gancho (3 seg): "[SIGNO], este mensaje es solo para ti..."
-   - Mensaje flash (12 seg): Energía, amor, dinero en frases cortas y poderosas
-   - Mantra (3 seg): Frase de 5-7 palabras para decretar
+REGLAS CRÍTICAS DE SEO EXPERTO (ESTILO VIDIO):
+
+1. TÍTULO (60-80 caracteres): Debe seguir UNA de estas fórmulas de alto CTR:
+   - Fórmula A: "Señales claras para {SIGNO}: [Beneficio] #[signo] #[tema] #astrologia"
+   - Fórmula B: "Secretos del cosmos para {SIGNO} hoy #[signo] #astrologia #zodiaco"
+   - Fórmula C: "Atención {SIGNO}: No ignores este mensaje #[signo] #astrologia #mensaje"
+   - Fórmula D: "La energía de {SIGNO} está imparable hoy #[signo] #energia #horoscopo"
+   - Fórmula E: "{SIGNO}: El universo te envía una señal urgente #[signo] #horoscopo #astrologia"
+   Usa palabras de alto impacto: señales, secretos, mensaje urgente, no ignores, el universo, energía, dinero, amor, pasión, cosmos.
+   INCLUYE 3 hashtags al final del título.
+
+2. GUION (65-80 palabras para durar 25-30 segundos). Estructura:
+   - Gancho (3-4 seg): "{SIGNO}, este mensaje del universo es solo para ti..."
+   - Mensaje flash (15 seg): Energía del día, amor/relaciones, dinero/trabajo en frases cortas y poderosas
+   - Mantra (4 seg): Frase de 5-7 palabras para decretar
    - CTA (5 seg): "Para ver los otros 11 signos, ve al video completo en mi canal"
-3. DESCRIPCIÓN: 2 líneas místicas + CTA al video largo.
-4. COMENTARIO FIJADO: Frase corta para que los seguidores comenten su signo.
+
+3. DESCRIPCIÓN (2-3 líneas): Frase mística + CTA al video largo + 3 hashtags.
+
+4. COMENTARIO FIJADO: Pregunta corta para que los seguidores comenten su signo y decreten.
+
 5. IMAGEN: Prompt en inglés (vertical, vibrante, místico, sin texto).
 
 Responde SOLO JSON:
 {{
-  "titulo": "...",
+  "titulo": "Señales claras para {SIGNO}: Dinero y pasión #{signo} #dinero #astrologia",
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
@@ -176,7 +203,7 @@ Responde SOLO JSON:
 """
 
 def llamar_deepseek_short(signo, fecha):
-    prompt = PROMPT_SHORT.format(
+    prompt = PROMPT_SHORT_SEO.format(
         fecha=fecha,
         signo=signo["nombre"],
         simbolo=signo["simbolo"],
@@ -204,12 +231,20 @@ def llamar_deepseek_short(signo, fecha):
             datos = json.loads(t[i_json:j_json + 1], strict=False)
             
             palabras = len(datos.get("guion", "").split())
-            if palabras < 30 or palabras > 70:
-                raise ValueError(f"Guion con {palabras} palabras (debe ser 45-55)")
+            # ✅ Validación para 25+ segundos: 65-80 palabras
+            if palabras < 55 or palabras > 90:
+                raise ValueError(f"Guion con {palabras} palabras (debe ser 65-80 para 25+ seg)")
+            
+            # Validar que el título tenga hashtags (estilo VidIQ)
+            titulo = datos.get("titulo", "")
+            if "#" not in titulo:
+                print(f"⚠️ Título sin hashtags, añadiendo automáticamente...")
+                signo_norm = normalizar_ascii(signo["nombre"])
+                datos["titulo"] = f"{titulo} #{signo_norm} #astrologia #horoscopo"
             
             return datos
         except Exception as e:
-            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
+            print(f"️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(2)
     raise Exception("Fallo DeepSeek tras 3 intentos")
 
@@ -299,11 +334,13 @@ def obtener_imagen_short(prompt, ruta):
 # 6. AUDIO Y RENDERIZADO VERTICAL
 # ================================================================
 async def generar_audio(texto, ruta):
+    # rate="-2%" para que dure un poco más y llegue a 25+ segundos
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%").save(ruta)
     return os.path.getsize(ruta) > 500
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
+    print(f"   ⏱️ Duración del audio: {dur:.1f} segundos")
     
     img = Image.open(img_path).convert("RGB")
     img = ImageEnhance.Brightness(img).enhance(1.1)
@@ -375,14 +412,14 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
             if bg.duration < dur:
                 bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
             audio_final = CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)])
-            print(f" Música de fondo: {musica}")
+            print(f"🎵 Música de fondo: {musica}")
         except:
             audio_final = audio
     else:
         audio_final = audio
     
     video = video.set_audio(audio_final)
-    print(" Renderizando Short vertical...")
+    print("🎬 Renderizando Short vertical...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", 
                          threads=4, preset="ultrafast", logger=None)
     return salida
@@ -398,7 +435,8 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
         desc += f"🎥 VIDEO COMPLETO DE HOY:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
     desc += f"🔔 Suscríbete: {CANAL_LINK}{HASHTAGS_SHORTS}\n\n#{normalizar_ascii(signo['nombre'])}"
     
-    tags = construir_tags_shorts(signo)
+    # Tags SEO experto
+    tags = construir_tags_shorts_experto(signo)
     
     body = {
         "snippet": {
@@ -445,7 +483,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
             }).execute()
             print("✅ Comentario fijado publicado.")
         except HttpError as e:
-            print(f"⚠️ Error comentario: {e}")
+            print(f"️ Error comentario: {e}")
     
     return video_id
 
@@ -474,8 +512,10 @@ def main():
         
         # Generar contenido con DeepSeek
         fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
-        print(f"🧠 1. Generando guion para {signo['nombre']}...")
+        print(f"🧠 1. Generando guion SEO experto para {signo['nombre']}...")
         datos = llamar_deepseek_short(signo, fecha_hoy)
+        print(f"   📝 Título SEO: {datos.get('titulo', 'N/A')}")
+        print(f"   📊 Palabras del guion: {len(datos.get('guion', '').split())}")
         
         # Generar imagen y audio
         print("🎨 2. Generando activos...")
