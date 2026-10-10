@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN SEO VIDIO
-Estrategia: 1 Short = 1 Signo, 2 Shorts al día (6AM y 9AM CDMX).
-Títulos estilo VidIQ SEO experto, duración 25+ segundos.
-Imágenes: Cloudflare (1 intento) → Pexels (fallback).
-Video relacionado: Último video largo del canal enlazado automáticamente.
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL SIN ERRORES
+Estrategia: 1 Short = 1 Signo, 3 Shorts al día (5AM, 7AM, 9AM CDMX).
+Horarios naturales aleatorios. Títulos estilo VidIQ SEO experto.
+Duración 25+ segundos. Imágenes: Cloudflare (1 intento) → Pexels.
 """
-import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
+import asyncio, base64, json, os, random, re, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 import requests, numpy as np
@@ -41,25 +40,15 @@ SIGNOS_INFO = [
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
     {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
-    {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
+    {"nombre": "Libra", "simbolo": "", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
     {"nombre": "Sagitario", "simbolo": "♐", "elemento": "fuego"},
     {"nombre": "Capricornio", "simbolo": "♑", "elemento": "tierra"},
-    {"nombre": "Acuario", "simbolo": "", "elemento": "aire"},
+    {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
-# ================================================================
-# 🏷️ MOTOR DE TAGS SEO EXPERTO (ALTO PUNTAJE VIDIO)
-# ================================================================
 HASHTAGS_SHORTS = "\n\n#shorts #horoscopo #zodiaco #astrologia #tucielhoy #mensajeDelUniverso #energiaDelDia"
-
-# Palabras clave SEO de alto volumen que VidIQ recomienda
-PALABRAS_CLAVE_ALTO_IMPACTO = [
-    "señales", "secretos", "mensaje urgente", "no ignores",
-    "el universo", "energía", "dinero", "amor", "pasión",
-    "cosmos", "predicción", "alerta", "revelación", "destino"
-]
 
 def normalizar_ascii(texto):
     texto = unicodedata.normalize('NFKD', texto)
@@ -67,7 +56,6 @@ def normalizar_ascii(texto):
     return texto.lower()
 
 def construir_tags_shorts_experto(signo):
-    """Tags SEO experto con palabras de alto volumen de búsqueda."""
     signo_norm = normalizar_ascii(signo["nombre"])
     tags_expertos = [
         "shorts", "horoscopo", "horoscopo de hoy", "zodiaco", "astrologia",
@@ -79,12 +67,11 @@ def construir_tags_shorts_experto(signo):
         f"horoscopo {signo_norm} amor", f"horoscopo {signo_norm} dinero",
         "mensaje urgente zodiaco", "revelacion cosmica"
     ]
-    # Filtrar tags válidos (2-30 chars) y tomar los 15 más fuertes
     tags_validos = [t for t in tags_expertos if 2 <= len(t) <= 30]
     return tags_validos[:15]
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY SEO EXPERTO - Bot Shorts Horóscopo")
+print("📱 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Horarios Naturales)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -93,7 +80,7 @@ if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TO
     sys.exit(1)
 
 # ================================================================
-# 2. ESTADO DEL BOT (Control de signos publicados hoy)
+# 2. ESTADO DEL BOT
 # ================================================================
 def cargar_estado():
     try:
@@ -114,16 +101,14 @@ def guardar_estado(data):
 def elegir_siguiente_signo(estado):
     publicados = set(estado.get("publicados", []))
     pendientes = [s for s in SIGNOS_INFO if s["nombre"] not in publicados]
-    
     if not pendientes:
         print("🔄 Los 12 signos ya fueron publicados hoy. Reiniciando ciclo...")
         return random.choice(SIGNOS_INFO), True
-    
     signo = random.choice(pendientes)
     return signo, False
 
 # ================================================================
-# 3. BUSCAR ÚLTIMO VIDEO LARGO DEL CANAL (Para enlazar en Shorts)
+# 3. BUSCAR ÚLTIMO VIDEO LARGO DEL CANAL
 # ================================================================
 def obtener_credenciales_youtube():
     yt_token = json.loads(YT_TOKEN_STR)
@@ -138,11 +123,7 @@ def buscar_ultimo_video_largo():
     try:
         youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
         request = youtube.search().list(
-            part="snippet",
-            forMine=True,
-            type="video",
-            maxResults=5,
-            order="date"
+            part="snippet", forMine=True, type="video", maxResults=5, order="date"
         )
         response = request.execute()
         for item in response.get("items", []):
@@ -150,7 +131,6 @@ def buscar_ultimo_video_largo():
             stats = youtube.videos().list(part="contentDetails,snippet", id=video_id).execute()
             if stats.get("items"):
                 duration = stats["items"][0]["contentDetails"]["duration"]
-                # Si la duración contiene "M" (minutos), es un video largo (>60 seg)
                 if "M" in duration:
                     title = stats["items"][0]["snippet"]["title"]
                     print(f"🎬 Último video largo detectado: {title[:50]}...")
@@ -161,8 +141,9 @@ def buscar_ultimo_video_largo():
         return None
 
 # ================================================================
-# 4. IA (DEEPSEEK) - PROMPT SEO EXPERTO ESTILO VIDIO
+# 4. IA (DEEPSEEK) - PROMPT SEO EXPERTO ✅ CORREGIDO
 # ================================================================
+# ⚠️ IMPORTANTE: Todos los placeholders van en MINÚSCULAS: {signo}, {simbolo}, {elemento}, {signo_lower}
 PROMPT_SHORT_SEO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO. Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
@@ -172,16 +153,16 @@ Genera un guion para un YouTube SHORT de 25-30 segundos sobre {signo}.
 REGLAS CRÍTICAS DE SEO EXPERTO (ESTILO VIDIO):
 
 1. TÍTULO (60-80 caracteres): Debe seguir UNA de estas fórmulas de alto CTR:
-   - Fórmula A: "Señales claras para {SIGNO}: [Beneficio] #[signo] #[tema] #astrologia"
-   - Fórmula B: "Secretos del cosmos para {SIGNO} hoy #[signo] #astrologia #zodiaco"
-   - Fórmula C: "Atención {SIGNO}: No ignores este mensaje #[signo] #astrologia #mensaje"
-   - Fórmula D: "La energía de {SIGNO} está imparable hoy #[signo] #energia #horoscopo"
-   - Fórmula E: "{SIGNO}: El universo te envía una señal urgente #[signo] #horoscopo #astrologia"
+   - Fórmula A: "Señales claras para {signo}: [Beneficio] #{signo_lower} #[tema] #astrologia"
+   - Fórmula B: "Secretos del cosmos para {signo} hoy #{signo_lower} #astrologia #zodiaco"
+   - Fórmula C: "Atención {signo}: No ignores este mensaje #{signo_lower} #astrologia #mensaje"
+   - Fórmula D: "La energía de {signo} está imparable hoy #{signo_lower} #energia #horoscopo"
+   - Fórmula E: "{signo}: El universo te envía una señal urgente #{signo_lower} #horoscopo #astrologia"
    Usa palabras de alto impacto: señales, secretos, mensaje urgente, no ignores, el universo, energía, dinero, amor, pasión, cosmos.
    INCLUYE 3 hashtags al final del título.
 
 2. GUION (65-80 palabras para durar 25-30 segundos). Estructura:
-   - Gancho (3-4 seg): "{SIGNO}, este mensaje del universo es solo para ti..."
+   - Gancho (3-4 seg): "{signo}, este mensaje del universo es solo para ti..."
    - Mensaje flash (15 seg): Energía del día, amor/relaciones, dinero/trabajo en frases cortas y poderosas
    - Mantra (4 seg): Frase de 5-7 palabras para decretar
    - CTA (5 seg): "Para ver los otros 11 signos, ve al video completo en mi canal"
@@ -194,7 +175,7 @@ REGLAS CRÍTICAS DE SEO EXPERTO (ESTILO VIDIO):
 
 Responde SOLO JSON:
 {{
-  "titulo": "Señales claras para {SIGNO}: Dinero y pasión #{signo} #dinero #astrologia",
+  "titulo": "Señales claras para {signo}: Dinero y pasión #{signo_lower} #dinero #astrologia",
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
@@ -203,11 +184,15 @@ Responde SOLO JSON:
 """
 
 def llamar_deepseek_short(signo, fecha):
+    # ✅ CORRECCIÓN CLAVE: signo_lower se calcula ANTES del format
+    signo_lower = normalizar_ascii(signo["nombre"])
+    
     prompt = PROMPT_SHORT_SEO.format(
         fecha=fecha,
         signo=signo["nombre"],
         simbolo=signo["simbolo"],
-        elemento=signo["elemento"]
+        elemento=signo["elemento"],
+        signo_lower=signo_lower
     )
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
@@ -231,20 +216,17 @@ def llamar_deepseek_short(signo, fecha):
             datos = json.loads(t[i_json:j_json + 1], strict=False)
             
             palabras = len(datos.get("guion", "").split())
-            # ✅ Validación para 25+ segundos: 65-80 palabras
             if palabras < 55 or palabras > 90:
                 raise ValueError(f"Guion con {palabras} palabras (debe ser 65-80 para 25+ seg)")
             
-            # Validar que el título tenga hashtags (estilo VidIQ)
             titulo = datos.get("titulo", "")
             if "#" not in titulo:
                 print(f"⚠️ Título sin hashtags, añadiendo automáticamente...")
-                signo_norm = normalizar_ascii(signo["nombre"])
-                datos["titulo"] = f"{titulo} #{signo_norm} #astrologia #horoscopo"
+                datos["titulo"] = f"{titulo} #{signo_lower} #astrologia #horoscopo"
             
             return datos
         except Exception as e:
-            print(f"️ DeepSeek intento {i+1} falló: {e}")
+            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(2)
     raise Exception("Fallo DeepSeek tras 3 intentos")
 
@@ -274,7 +256,6 @@ def generar_cf_vertical(prompt, ruta):
         with open(ruta, "wb") as f:
             f.write(base64.b64decode(result["result"]["image"]))
         
-        # Recortar a formato vertical 9:16
         with Image.open(ruta) as im:
             im = im.convert("RGB")
             w, h = im.size
@@ -316,7 +297,6 @@ def generar_pexels_vertical(query, ruta):
     return ruta
 
 def obtener_imagen_short(prompt, ruta):
-    # ✅ Primero Cloudflare (1 intento), si falla Pexels
     try:
         print(f"   ☁️ CF Intento 1/1...")
         return generar_cf_vertical(prompt, ruta)
@@ -334,7 +314,6 @@ def obtener_imagen_short(prompt, ruta):
 # 6. AUDIO Y RENDERIZADO VERTICAL
 # ================================================================
 async def generar_audio(texto, ruta):
-    # rate="-2%" para que dure un poco más y llegue a 25+ segundos
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%").save(ruta)
     return os.path.getsize(ruta) > 500
 
@@ -354,19 +333,16 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     except:
         font_nombre = font_mantra = ImageFont.load_default()
     
-    # Nombre del signo gigante en el centro
     texto_nombre = f"{signo['simbolo']} {signo['nombre'].upper()}"
     draw.text((W_SHORT//2, 400), texto_nombre, font=font_nombre, 
               fill=(255, 255, 255), anchor="mm", stroke_width=12, stroke_fill=(0, 0, 0))
     
-    # Mantra en la parte inferior
     mantra = guion.split('.')[-1].strip()[:80]
     draw.text((W_SHORT//2, 1600), mantra, font=font_mantra, 
               fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
     
     img.save("temp_short_frame.jpg")
     
-    # Efecto Ken Burns vertical
     _VIG = {}
     def vignette_vert(size, base=1.0, fuerza=0.3):
         k = (size, base)
@@ -393,7 +369,6 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
         fr = np.asarray(base.resize((W_SHORT, H_SHORT), Image.BILINEAR, 
                                     box=(x0, y0, x0 + cw, y0 + ch)))
         
-        # Fade in/out
         f = 1.0
         if t < 0.5: f = t / 0.5
         if t > dur - 0.5: f = min(f, max(0.0, (dur - t) / 0.5))
@@ -403,7 +378,6 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     video = VideoClip(frame, duration=dur)
     audio = AudioFileClip(audio_path)
     
-    # Música de fondo
     musicas = [f for f in os.listdir(".") if f.lower().endswith(".mp3") and not f.startswith("temp_")]
     if musicas:
         musica = random.choice(musicas)
@@ -435,7 +409,6 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
         desc += f"🎥 VIDEO COMPLETO DE HOY:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
     desc += f"🔔 Suscríbete: {CANAL_LINK}{HASHTAGS_SHORTS}\n\n#{normalizar_ascii(signo['nombre'])}"
     
-    # Tags SEO experto
     tags = construir_tags_shorts_experto(signo)
     
     body = {
@@ -483,12 +456,12 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
             }).execute()
             print("✅ Comentario fijado publicado.")
         except HttpError as e:
-            print(f"️ Error comentario: {e}")
+            print(f"⚠️ Error comentario: {e}")
     
     return video_id
 
 # ================================================================
-# 8. MAIN
+# 8. MAIN - CON HORARIOS NATURALES ALEATORIOS
 # ================================================================
 def main():
     try:
@@ -500,11 +473,29 @@ def main():
         signo, reinicio = elegir_siguiente_signo(estado)
         print(f"🎯 Signo elegido: {signo['simbolo']} {signo['nombre']}")
         
-        # Programar publicación (15-30 min después de la hora de activación)
-        minutos_extra = random.randint(15, 30)
-        hora_final = ahora + timedelta(minutes=minutos_extra)
+        # ✅ HORARIOS NATURALES ALEATORIOS
+        hora_actual = ahora.hour
+        
+        if 4 <= hora_actual < 6:
+            # Ventana de 5 AM: publicar entre 5:05 y 5:50 AM
+            hora_base = ahora.replace(hour=5, minute=0, second=0, microsecond=0)
+            minutos_aleatorios = random.randint(5, 50)
+        elif 6 <= hora_actual < 8:
+            # Ventana de 7 AM: publicar entre 7:10 y 7:45 AM
+            hora_base = ahora.replace(hour=7, minute=0, second=0, microsecond=0)
+            minutos_aleatorios = random.randint(10, 45)
+        elif 8 <= hora_actual < 10:
+            # Ventana de 9 AM: publicar entre 9:05 y 9:40 AM
+            hora_base = ahora.replace(hour=9, minute=0, second=0, microsecond=0)
+            minutos_aleatorios = random.randint(5, 40)
+        else:
+            # Fallback: 15-45 minutos desde ahora
+            hora_base = ahora
+            minutos_aleatorios = random.randint(15, 45)
+        
+        hora_final = hora_base + timedelta(minutes=minutos_aleatorios)
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        print(f"📅 Programado para: {hora_final:%H:%M} (CDMX)")
+        print(f" Programado para: {hora_final:%H:%M} (CDMX) - Horario natural aleatorio")
         
         # Buscar último video largo para enlazar
         print("🔍 Buscando último video largo del canal...")
@@ -518,7 +509,7 @@ def main():
         print(f"   📊 Palabras del guion: {len(datos.get('guion', '').split())}")
         
         # Generar imagen y audio
-        print("🎨 2. Generando activos...")
+        print(" 2. Generando activos...")
         obtener_imagen_short(datos.get("visual_prompt", f"vertical mystical {signo['elemento']} energy"), "temp_short_img.jpg")
         asyncio.run(generar_audio(datos["guion"], "temp_short_audio.mp3"))
         
