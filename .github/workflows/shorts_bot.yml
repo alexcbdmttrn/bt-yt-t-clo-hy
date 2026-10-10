@@ -2,11 +2,13 @@ name: Bot Shorts Horoscopo (Tu Cielo Hoy)
 
 on:
   schedule:
-    # 2 Shorts al día: 6:00 AM y 9:00 AM CDMX
+    # 3 Shorts al día: 5:00 AM, 7:00 AM y 9:00 AM CDMX
     # CDMX = UTC-6 (horario estándar)
-    # 6:00 AM CDMX = 12:00 UTC
+    # 5:00 AM CDMX = 11:00 UTC
+    # 7:00 AM CDMX = 13:00 UTC
     # 9:00 AM CDMX = 15:00 UTC
-    - cron: '0 12 * * *'
+    - cron: '0 11 * * *'
+    - cron: '0 13 * * *'
     - cron: '0 15 * * *'
   workflow_dispatch:
 
