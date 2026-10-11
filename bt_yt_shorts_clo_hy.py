@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL ANTI-REPETICIÓN
-Fix: Imports completos (ssl, socket), cola secuencial, commit automático.
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL BLINDADA
+Fix: Git pull antes de push, imports completos, cola secuencial anti-repetición.
 Estrategia: 1 Short = 1 Signo, 3 Shorts al día (5AM, 7AM, 9AM CDMX).
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
@@ -36,17 +36,17 @@ W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
 # ✅ COLA SECUENCIAL FIJA (garantiza 0 repeticiones)
 SIGNOS_COLA = [
-    {"nombre": "Aries", "simbolo": "", "elemento": "fuego"},
+    {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
-    {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
+    {"nombre": "Géminis", "simbolo": "", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
     {"nombre": "Sagitario", "simbolo": "♐", "elemento": "fuego"},
     {"nombre": "Capricornio", "simbolo": "♑", "elemento": "tierra"},
-    {"nombre": "Acuario", "simbolo": "", "elemento": "aire"},
+    {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
@@ -73,8 +73,8 @@ def construir_tags_shorts_experto(signo):
     return tags_validos[:15]
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - Anti-Repetición con Cola Secuencial")
-print(f" {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
+print("📱 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Versión Final Blindada)")
+print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
@@ -101,16 +101,22 @@ def guardar_estado(data):
     with open(ESTADO_FILE + ".tmp", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(ESTADO_FILE + ".tmp", ESTADO_FILE)
-    print(f"💾 Estado guardado: índice={data['indice']}, publicados={data['publicados_hoy']}")
+    print(f"💾 Estado guardado localmente: índice={data['indice']}, publicados={data['publicados_hoy']}")
 
 def hacer_commit_estado():
     """Hace commit y push del archivo de estado al repositorio."""
     if not GITHUB_TOKEN:
-        print("️ No hay GITHUB_TOKEN, no se puede hacer commit automático.")
+        print("⚠️ No hay GITHUB_TOKEN, no se puede hacer commit automático.")
         return False
     try:
         subprocess.run(["git", "config", "user.name", "bot-shorts"], check=False, capture_output=True)
         subprocess.run(["git", "config", "user.email", "bot@tucielhoy.com"], check=False, capture_output=True)
+        
+        # ✅ CORRECCIÓN: Traer cambios recientes para evitar el error "fetch first"
+        pull_result = subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False, capture_output=True, text=True)
+        if pull_result.returncode != 0:
+            print(f"⚠️ Git pull tuvo un aviso: {pull_result.stderr[:100]}")
+        
         subprocess.run(["git", "add", ESTADO_FILE], check=False, capture_output=True)
         subprocess.run(["git", "commit", "-m", f"🤖 Actualizar estado shorts {datetime.now(TZ).strftime('%H:%M')}"], 
                       check=False, capture_output=True)
@@ -118,10 +124,10 @@ def hacer_commit_estado():
         result = subprocess.run(["git", "push", remote_url, "HEAD:main"], 
                                check=False, capture_output=True, text=True)
         if result.returncode == 0:
-            print("✅ Estado commiteado al repositorio exitosamente.")
+            print("✅ Estado commiteado y subido al repositorio exitosamente.")
             return True
         else:
-            print(f"⚠️ No se pudo hacer push: {result.stderr[:150]}")
+            print(f"⚠️ No se pudo hacer push (no es crítico, el short ya se subió): {result.stderr[:150]}")
             return False
     except Exception as e:
         print(f"⚠️ Error al commitear estado: {e}")
@@ -175,20 +181,9 @@ def obtener_credenciales_youtube():
     if creds.expired and creds.refresh_token:
         try:
             creds.refresh(Request())
-            # Actualizar el token en el entorno para que persista
-            nuevo_token = {
-                "token": creds.token,
-                "refresh_token": creds.refresh_token,
-                "token_uri": creds.token_uri,
-                "client_id": creds.client_id,
-                "client_secret": creds.client_secret,
-                "scopes": creds.scopes
-            }
-            os.environ["YOUTUBE_USER_TOKEN"] = json.dumps(nuevo_token)
             print("🔄 Token de YouTube refrescado exitosamente.")
         except Exception as e:
             print(f"❌ No se pudo refrescar el token: {e}")
-            print("️ NECESITAS REGENERAR EL TOKEN MANUALMENTE.")
             raise
     return creds
 
@@ -210,7 +205,7 @@ def buscar_ultimo_video_largo():
                     return video_id
         return None
     except Exception as e:
-        print(f"️ No se pudo buscar el último video largo: {e}")
+        print(f"⚠️ No se pudo buscar el último video largo: {e}")
         return None
 
 # ================================================================
@@ -291,7 +286,7 @@ def llamar_deepseek_short(signo, fecha):
             
             titulo = datos.get("titulo", "")
             if "#" not in titulo:
-                print(f"️ Título sin hashtags, añadiendo automáticamente...")
+                print(f"⚠️ Título sin hashtags, añadiendo automáticamente...")
                 datos["titulo"] = f"{titulo} #{signo_lower} #astrologia #horoscopo"
             
             return datos
@@ -361,7 +356,7 @@ def obtener_imagen_short(prompt, ruta):
         print(f"   ☁️ CF Intento 1/1...")
         return generar_cf_vertical(prompt, ruta)
     except Exception as e:
-        print(f"   ⚠️ CF falló, usando Pexels...")
+        print(f"   ️ CF falló, usando Pexels...")
     try:
         query = prompt + " mystical cosmic vibrant"
         return generar_pexels_vertical(query, ruta)
@@ -378,7 +373,7 @@ async def generar_audio(texto, ruta):
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
-    print(f"   ⏱️ Duración del audio: {dur:.1f} segundos")
+    print(f"   ️ Duración del audio: {dur:.1f} segundos")
     img = Image.open(img_path).convert("RGB")
     img = ImageEnhance.Brightness(img).enhance(1.1)
     img = ImageEnhance.Contrast(img).enhance(1.2)
@@ -433,7 +428,7 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
             if bg.duration < dur:
                 bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
             audio_final = CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)])
-            print(f" Música de fondo: {musica}")
+            print(f"🎵 Música de fondo: {musica}")
         except:
             audio_final = audio
     else:
@@ -480,7 +475,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
         except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"️ Reintentando ({reintentos}/8)...")
+                print(f"⚠️ Reintentando ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
     video_id = resp["id"]
@@ -489,13 +484,13 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
         try:
             comentario = datos["comentario_fijado"]
             if video_largo_id:
-                comentario += f"\n\n🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}"
+                comentario += f"\n\n Video completo: https://www.youtube.com/watch?v={video_largo_id}"
             youtube.commentThreads().insert(part="snippet", body={
                 "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": comentario}}}
             }).execute()
             print("✅ Comentario fijado publicado.")
         except HttpError as e:
-            print(f"⚠️ Error comentario: {e}")
+            print(f"⚠️ Error comentario (normal en videos programados): {e}")
     return video_id
 
 # ================================================================
@@ -504,7 +499,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
 def main():
     try:
         ahora = datetime.now(TZ)
-        print(f" Bot Shorts ejecutándose...")
+        print(f"🤖 Bot Shorts ejecutándose...")
         
         # ✅ CARGAR ESTADO Y ELEGIR SIGNO DE LA COLA
         estado = cargar_estado()
@@ -548,7 +543,7 @@ def main():
         print(" 3. Renderizando Short...")
         renderizar_short(signo, datos["guion"], "temp_short_img.jpg", "temp_short_audio.mp3", "short_final.mp4")
         
-        print("📤 4. Subiendo a YouTube...")
+        print(" 4. Subiendo a YouTube...")
         subir_short_youtube("short_final.mp4", datos, signo, video_largo_id, hora_utc)
         
         # ✅ GUARDAR ESTADO Y HACER COMMIT AUTOMÁTICO
