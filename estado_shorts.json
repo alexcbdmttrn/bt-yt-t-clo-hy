@@ -1,5 +1,8 @@
 {
   "fecha": "2026-10-10",
-  "indice": 1,
-  "publicados_hoy": ["Aries"]
+  "indice": 2,
+  "publicados_hoy": [
+    "Aries",
+    "Tauro"
+  ]
 }
