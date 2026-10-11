@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL BLINDADA
-Fix: Git pull antes de push, imports completos, cola secuencial anti-repetición.
-Estrategia: 1 Short = 1 Signo, 3 Shorts al día (5AM, 7AM, 9AM CDMX).
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL SECUENCIAL CONTINUA
+Fix: El índice de los 12 signos YA NO se reinicia al cambiar de día. Continúa la secuencia.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -34,13 +33,13 @@ VOZ_CANAL = "es-MX-DaliaNeural"
 ESTADO_FILE = "estado_shorts.json"
 W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
-# ✅ COLA SECUENCIAL FIJA (garantiza 0 repeticiones)
+# ✅ COLA SECUENCIAL FIJA (garantiza 0 repeticiones hasta completar los 12)
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
-    {"nombre": "Géminis", "simbolo": "", "elemento": "aire"},
+    {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
@@ -73,7 +72,7 @@ def construir_tags_shorts_experto(signo):
     return tags_validos[:15]
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Versión Final Blindada)")
+print("📱 BT_YT_SHORTS_CLO_HY - Secuencia Continua de 12 Signos")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -82,18 +81,26 @@ if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TO
     sys.exit(1)
 
 # ================================================================
-# 2. ESTADO DEL BOT CON COLA SECUENCIAL
+# 2. ESTADO DEL BOT CON SECUENCIA CONTINUA (CORREGIDO)
 # ================================================================
 def cargar_estado():
     try:
         with open(ESTADO_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             hoy = datetime.now(TZ).strftime("%Y-%m-%d")
+            
+            # ✅ CORRECCIÓN: Si es un nuevo día, actualizamos la fecha y limpiamos 
+            # los publicados HOY, pero MANTENEMOS el índice para continuar la secuencia.
             if data.get("fecha") != hoy:
-                print(f"🔄 Nuevo día detectado. Reiniciando cola de signos.")
-                return {"fecha": hoy, "indice": 0, "publicados_hoy": []}
+                indice_actual = data.get("indice", 0)
+                print(f"🔄 Nuevo día detectado. Continuando secuencia desde el índice {indice_actual} (Signo: {SIGNOS_COLA[indice_actual % 12]['nombre']}).")
+                data["fecha"] = hoy
+                data["publicados_hoy"] = []
+                return data
+            
             return data
     except:
+        # Si el archivo no existe o está corrupto, iniciamos desde cero
         hoy = datetime.now(TZ).strftime("%Y-%m-%d")
         return {"fecha": hoy, "indice": 0, "publicados_hoy": []}
 
@@ -101,10 +108,9 @@ def guardar_estado(data):
     with open(ESTADO_FILE + ".tmp", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(ESTADO_FILE + ".tmp", ESTADO_FILE)
-    print(f"💾 Estado guardado localmente: índice={data['indice']}, publicados={data['publicados_hoy']}")
+    print(f"💾 Estado guardado localmente: índice={data['indice']}, publicados_hoy={data['publicados_hoy']}")
 
 def hacer_commit_estado():
-    """Hace commit y push del archivo de estado al repositorio."""
     if not GITHUB_TOKEN:
         print("⚠️ No hay GITHUB_TOKEN, no se puede hacer commit automático.")
         return False
@@ -112,7 +118,7 @@ def hacer_commit_estado():
         subprocess.run(["git", "config", "user.name", "bot-shorts"], check=False, capture_output=True)
         subprocess.run(["git", "config", "user.email", "bot@tucielhoy.com"], check=False, capture_output=True)
         
-        # ✅ CORRECCIÓN: Traer cambios recientes para evitar el error "fetch first"
+        # Traer cambios recientes para evitar el error "fetch first"
         pull_result = subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False, capture_output=True, text=True)
         if pull_result.returncode != 0:
             print(f"⚠️ Git pull tuvo un aviso: {pull_result.stderr[:100]}")
@@ -134,27 +140,21 @@ def hacer_commit_estado():
         return False
 
 def elegir_siguiente_signo(estado):
-    """
-    ✅ SISTEMA DE COLA SECUENCIAL:
-    - Avanza por la lista en orden (no aleatorio)
-    - Cuando llega al final (índice 12), reinicia a 0
-    - Garantiza 0 repeticiones hasta cubrir los 12 signos
-    """
     indice = estado.get("indice", 0)
     publicados_hoy = estado.get("publicados_hoy", [])
     
-    # Si ya se publicaron los 12 hoy, reiniciar ciclo
+    # Si por alguna razón ya se publicaron los 12 hoy, reiniciar ciclo
     if len(publicados_hoy) >= 12:
-        print("🔄 Los 12 signos ya fueron publicados hoy. Reiniciando ciclo...")
+        print("🔄 Los 12 signos ya fueron publicados. Reiniciando ciclo completo...")
         indice = 0
         publicados_hoy = []
     
     # Obtener el siguiente signo de la cola
     signo = SIGNOS_COLA[indice % 12]
     
-    # Verificar que no esté ya publicado hoy (seguridad extra)
+    # Seguridad extra: verificar que no esté ya publicado hoy
     if signo["nombre"] in publicados_hoy:
-        print(f"⚠️ {signo['nombre']} ya fue publicado hoy, buscando siguiente...")
+        print(f"⚠️ {signo['nombre']} ya fue publicado hoy, buscando siguiente en la secuencia...")
         for i in range(1, 12):
             candidato = SIGNOS_COLA[(indice + i) % 12]
             if candidato["nombre"] not in publicados_hoy:
@@ -356,7 +356,7 @@ def obtener_imagen_short(prompt, ruta):
         print(f"   ☁️ CF Intento 1/1...")
         return generar_cf_vertical(prompt, ruta)
     except Exception as e:
-        print(f"   ️ CF falló, usando Pexels...")
+        print(f"   ⚠️ CF falló, usando Pexels...")
     try:
         query = prompt + " mystical cosmic vibrant"
         return generar_pexels_vertical(query, ruta)
@@ -373,7 +373,7 @@ async def generar_audio(texto, ruta):
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
-    print(f"   ️ Duración del audio: {dur:.1f} segundos")
+    print(f"   ⏱️ Duración del audio: {dur:.1f} segundos")
     img = Image.open(img_path).convert("RGB")
     img = ImageEnhance.Brightness(img).enhance(1.1)
     img = ImageEnhance.Contrast(img).enhance(1.2)
@@ -434,7 +434,7 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     else:
         audio_final = audio
     video = video.set_audio(audio_final)
-    print(" Renderizando Short vertical...")
+    print("🎬 Renderizando Short vertical...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", 
                          threads=4, preset="ultrafast", logger=None)
     return salida
@@ -484,7 +484,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
         try:
             comentario = datos["comentario_fijado"]
             if video_largo_id:
-                comentario += f"\n\n Video completo: https://www.youtube.com/watch?v={video_largo_id}"
+                comentario += f"\n\n🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}"
             youtube.commentThreads().insert(part="snippet", body={
                 "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": comentario}}}
             }).execute()
@@ -540,10 +540,10 @@ def main():
         obtener_imagen_short(datos.get("visual_prompt", f"vertical mystical {signo['elemento']} energy"), "temp_short_img.jpg")
         asyncio.run(generar_audio(datos["guion"], "temp_short_audio.mp3"))
         
-        print(" 3. Renderizando Short...")
+        print("🎬 3. Renderizando Short...")
         renderizar_short(signo, datos["guion"], "temp_short_img.jpg", "temp_short_audio.mp3", "short_final.mp4")
         
-        print(" 4. Subiendo a YouTube...")
+        print("📤 4. Subiendo a YouTube...")
         subir_short_youtube("short_final.mp4", datos, signo, video_largo_id, hora_utc)
         
         # ✅ GUARDAR ESTADO Y HACER COMMIT AUTOMÁTICO
