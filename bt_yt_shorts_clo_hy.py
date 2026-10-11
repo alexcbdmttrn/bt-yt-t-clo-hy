@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN IMÁGENES ÉPICA
-Fix: Prompts de imagen ultra-específicos y llamativos por elemento (fuego, tierra, aire, agua).
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL COMPLETA
+Fix: CTA persuasivo variado, imágenes épicas por elemento, secuencia continua.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -33,23 +33,21 @@ VOZ_CANAL = "es-MX-DaliaNeural"
 ESTADO_FILE = "estado_shorts.json"
 W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
-# ✅ COLA SECUENCIAL FIJA
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
     {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
-    {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
+    {"nombre": "Escorpio", "simbolo": "", "elemento": "agua"},
     {"nombre": "Sagitario", "simbolo": "♐", "elemento": "fuego"},
     {"nombre": "Capricornio", "simbolo": "♑", "elemento": "tierra"},
     {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
-# 🎨 PROMPTS DE IMAGEN ÉPICOS POR ELEMENTO (Basados en el éxito de Tauro)
 PROMPTS_IMAGEN_ELEMENTO = {
     "fuego": "vertical intense flames and golden sparks, dramatic red and orange cosmic explosion, mystical fire energy, vibrant glowing embers, 8k cinematic, highly detailed, no text",
     "tierra": "vertical lush green forest with golden sunlight beams, mystical nature energy, vibrant emerald and gold, magical crystals and plants, 8k cinematic, highly detailed, no text",
@@ -80,12 +78,12 @@ def construir_tags_shorts_experto(signo):
     return tags_validos[:15]
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - Imágenes Épicas por Elemento")
+print(" BT_YT_SHORTS_CLO_HY - Bot Completo con CTA Persuasivo")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
-    print(" ERROR: Faltan variables de entorno en los Secrets de GitHub.")
+    print("❌ ERROR: Faltan variables de entorno en los Secrets de GitHub.")
     sys.exit(1)
 
 # ================================================================
@@ -111,7 +109,7 @@ def guardar_estado(data):
     with open(ESTADO_FILE + ".tmp", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(ESTADO_FILE + ".tmp", ESTADO_FILE)
-    print(f" Estado guardado: índice={data['indice']}, publicados_hoy={data['publicados_hoy']}")
+    print(f"💾 Estado guardado: índice={data['indice']}, publicados_hoy={data['publicados_hoy']}")
 
 def hacer_commit_estado():
     if not GITHUB_TOKEN:
@@ -129,10 +127,10 @@ def hacer_commit_estado():
             print("✅ Estado commiteado.")
             return True
         else:
-            print(f"⚠️ No se pudo hacer push: {result.stderr[:100]}")
+            print(f"️ No se pudo hacer push: {result.stderr[:100]}")
             return False
     except Exception as e:
-        print(f"⚠️ Error commit: {e}")
+        print(f"️ Error commit: {e}")
         return False
 
 def elegir_siguiente_signo(estado):
@@ -191,7 +189,7 @@ def buscar_ultimo_video_largo():
         return None
 
 # ================================================================
-# 4. DEEPSEEK
+# 4. DEEPSEEK - CON CTAs VARIADOS Y PERSUASIVOS
 # ================================================================
 PROMPT_SHORT_SEO = """
 Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico, URGENTE.
@@ -199,11 +197,19 @@ Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
 Genera un guion para un YouTube SHORT de 25-30 segundos.
 
-REGLAS:
+REGLAS CRÍTICAS:
 1. TÍTULO (60-80 chars): Usa fórmulas como "Señales claras para {signo}: [Beneficio]" o "{signo}: Mensaje URGENTE". INCLUYE 3 hashtags.
-2. GUION (65-80 palabras): Gancho + Energía/Amor/Dinero + Mantra + CTA al video largo.
-3. DESCRIPCIÓN: 2 líneas místicas + CTA.
-4. COMENTARIO FIJADO: Pregunta corta.
+2. GUION (65-80 palabras): 
+   - Gancho (3 seg): "{signo}, este mensaje es solo para ti..."
+   - Cuerpo (15 seg): Energía, amor y dinero en frases poderosas.
+   - Mantra (4 seg): Frase de 5-7 palabras para decretar.
+   - CTA FINAL (5-7 seg, PERSUASIVO): Debes invitar a ver los videos largos. Elige UNA de estas 4 variaciones para que suene natural y no repetitivo:
+     A) "No te quedes con la duda. Encuentra mensajes diarios, semanales y mensuales exclusivos en los videos de mi canal. ¡Te espero!"
+     B) "¿Quieres profundizar? En mi canal tengo horóscopos diarios, semanales y mensuales con toda la energía que necesitas. ¡Corre a verlos!"
+     C) "El universo tiene mucho más que decirte. Descúbrelo en mis videos largos diarios, semanales y mensuales en el canal. ¡Tu destino te espera!"
+     D) "Miles ya transforman su energía con mis videos largos. Únete y mira el horóscopo diario, semanal y mensual en mi canal."
+3. DESCRIPCIÓN: 2 líneas místicas + Enlace al video largo + Hashtags.
+4. COMENTARIO FIJADO: Pregunta corta + "Mira el video completo (diario/semanal/mensual) en mi canal".
 
 Responde SOLO JSON:
 {{
@@ -245,7 +251,7 @@ def llamar_deepseek_short(signo, fecha):
             
             return datos
         except Exception as e:
-            print(f"️ DeepSeek intento {i+1} falló: {e}")
+            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(2)
     raise Exception("Fallo DeepSeek")
 
@@ -302,14 +308,13 @@ def generar_pexels_vertical(query, ruta):
     return ruta
 
 def obtener_imagen_short(signo, ruta):
-    # ✅ USAR EL PROMPT ÉPICO SEGÚN EL ELEMENTO DEL SIGNO
     prompt_epico = PROMPTS_IMAGEN_ELEMENTO.get(signo["elemento"], PROMPTS_IMAGEN_ELEMENTO["fuego"])
     
     try:
         print(f"   ☁️ CF Intento 1/1...")
         return generar_cf_vertical(prompt_epico, ruta)
     except Exception as e:
-        print(f"   ⚠️ CF falló, usando Pexels...")
+        print(f"   ️ CF falló, usando Pexels...")
     
     try:
         return generar_pexels_vertical(prompt_epico, ruta)
@@ -392,7 +397,7 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
             if bg.duration < dur:
                 bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
             audio_final = CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)])
-            print(f"🎵 Música: {musica}")
+            print(f" Música: {musica}")
         except:
             audio_final = audio
     else:
@@ -411,7 +416,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
     desc = f"{datos['descripcion']}\n\n"
     if video_largo_id:
-        desc += f"🎥 VIDEO COMPLETO:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
+        desc += f"🎥 VIDEOS DIARIOS, SEMANALES Y MENSUALES:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
     desc += f"🔔 Suscríbete: {CANAL_LINK}{HASHTAGS_SHORTS}\n\n#{normalizar_ascii(signo['nombre'])}"
     tags = construir_tags_shorts_experto(signo)
     body = {
@@ -430,15 +435,16 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
         except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"⚠️ Reintentando ({reintentos}/8)...")
+                print(f"️ Reintentando ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
     video_id = resp["id"]
     print(f"✅ Short subido. ID: {video_id}")
     if datos.get("comentario_fijado"):
         try:
+            comentario = datos["comentario_fijado"] + (f"\n\n🎥 Video completo en el canal: https://www.youtube.com/watch?v={video_largo_id}" if video_largo_id else "")
             youtube.commentThreads().insert(part="snippet", body={
-                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}
+                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": comentario}}}
             }).execute()
         except HttpError as e:
             print(f"⚠️ Error comentario: {e}")
@@ -455,7 +461,7 @@ def main():
         estado = cargar_estado()
         signo = elegir_siguiente_signo(estado)
         print(f"🎯 Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
-        print(f" Progreso: {len(estado['publicados_hoy'])}/12")
+        print(f"📊 Progreso: {len(estado['publicados_hoy'])}/12")
         
         hora_actual = ahora.hour
         if 4 <= hora_actual < 6:
@@ -504,7 +510,7 @@ def main():
                 except: pass
                 
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f"❌ ERROR FATAL: {e}")
         traceback.print_exc()
         sys.exit(1)
 
