@@ -1,7 +1,13 @@
 {
-  "fecha": "2026-10-11",
-  "indice": 1,
+  "fecha": "2026-10-10",
+  "indice": 7,
   "publicados_hoy": [
-    "Aries"
+    "Aries",
+    "Tauro",
+    "Géminis",
+    "Cáncer",
+    "Leo",
+    "Escorpio",
+    "Acuario"
   ]
 }
