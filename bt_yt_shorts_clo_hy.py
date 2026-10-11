@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL SECUENCIAL CONTINUA
-Fix: El índice de los 12 signos YA NO se reinicia al cambiar de día. Continúa la secuencia.
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN IMÁGENES ÉPICA
+Fix: Prompts de imagen ultra-específicos y llamativos por elemento (fuego, tierra, aire, agua).
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -33,13 +33,13 @@ VOZ_CANAL = "es-MX-DaliaNeural"
 ESTADO_FILE = "estado_shorts.json"
 W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
-# ✅ COLA SECUENCIAL FIJA (garantiza 0 repeticiones hasta completar los 12)
+# ✅ COLA SECUENCIAL FIJA
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
     {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
@@ -48,6 +48,14 @@ SIGNOS_COLA = [
     {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
+
+# 🎨 PROMPTS DE IMAGEN ÉPICOS POR ELEMENTO (Basados en el éxito de Tauro)
+PROMPTS_IMAGEN_ELEMENTO = {
+    "fuego": "vertical intense flames and golden sparks, dramatic red and orange cosmic explosion, mystical fire energy, vibrant glowing embers, 8k cinematic, highly detailed, no text",
+    "tierra": "vertical lush green forest with golden sunlight beams, mystical nature energy, vibrant emerald and gold, magical crystals and plants, 8k cinematic, highly detailed, no text",
+    "aire": "vertical swirling aurora borealis with electric blue and purple, cosmic wind energy, vibrant sky with shooting stars, 8k cinematic, highly detailed, no text",
+    "agua": "vertical deep ocean with bioluminescent creatures, mystical water energy, vibrant turquoise and silver, magical underwater light rays, 8k cinematic, highly detailed, no text"
+}
 
 HASHTAGS_SHORTS = "\n\n#shorts #horoscopo #zodiaco #astrologia #tucielhoy #mensajeDelUniverso #energiaDelDia"
 
@@ -72,35 +80,30 @@ def construir_tags_shorts_experto(signo):
     return tags_validos[:15]
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - Secuencia Continua de 12 Signos")
+print("📱 BT_YT_SHORTS_CLO_HY - Imágenes Épicas por Elemento")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
-    print("❌ ERROR: Faltan variables de entorno en los Secrets de GitHub.")
+    print(" ERROR: Faltan variables de entorno en los Secrets de GitHub.")
     sys.exit(1)
 
 # ================================================================
-# 2. ESTADO DEL BOT CON SECUENCIA CONTINUA (CORREGIDO)
+# 2. ESTADO DEL BOT
 # ================================================================
 def cargar_estado():
     try:
         with open(ESTADO_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
             hoy = datetime.now(TZ).strftime("%Y-%m-%d")
-            
-            # ✅ CORRECCIÓN: Si es un nuevo día, actualizamos la fecha y limpiamos 
-            # los publicados HOY, pero MANTENEMOS el índice para continuar la secuencia.
             if data.get("fecha") != hoy:
                 indice_actual = data.get("indice", 0)
-                print(f"🔄 Nuevo día detectado. Continuando secuencia desde el índice {indice_actual} (Signo: {SIGNOS_COLA[indice_actual % 12]['nombre']}).")
+                print(f"🔄 Nuevo día detectado. Continuando secuencia desde el índice {indice_actual}.")
                 data["fecha"] = hoy
                 data["publicados_hoy"] = []
                 return data
-            
             return data
     except:
-        # Si el archivo no existe o está corrupto, iniciamos desde cero
         hoy = datetime.now(TZ).strftime("%Y-%m-%d")
         return {"fecha": hoy, "indice": 0, "publicados_hoy": []}
 
@@ -108,53 +111,42 @@ def guardar_estado(data):
     with open(ESTADO_FILE + ".tmp", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(ESTADO_FILE + ".tmp", ESTADO_FILE)
-    print(f"💾 Estado guardado localmente: índice={data['indice']}, publicados_hoy={data['publicados_hoy']}")
+    print(f" Estado guardado: índice={data['indice']}, publicados_hoy={data['publicados_hoy']}")
 
 def hacer_commit_estado():
     if not GITHUB_TOKEN:
-        print("⚠️ No hay GITHUB_TOKEN, no se puede hacer commit automático.")
+        print("⚠️ No hay GITHUB_TOKEN.")
         return False
     try:
         subprocess.run(["git", "config", "user.name", "bot-shorts"], check=False, capture_output=True)
         subprocess.run(["git", "config", "user.email", "bot@tucielhoy.com"], check=False, capture_output=True)
-        
-        # Traer cambios recientes para evitar el error "fetch first"
-        pull_result = subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False, capture_output=True, text=True)
-        if pull_result.returncode != 0:
-            print(f"⚠️ Git pull tuvo un aviso: {pull_result.stderr[:100]}")
-        
+        subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False, capture_output=True)
         subprocess.run(["git", "add", ESTADO_FILE], check=False, capture_output=True)
-        subprocess.run(["git", "commit", "-m", f"🤖 Actualizar estado shorts {datetime.now(TZ).strftime('%H:%M')}"], 
-                      check=False, capture_output=True)
+        subprocess.run(["git", "commit", "-m", f"🤖 Actualizar estado {datetime.now(TZ).strftime('%H:%M')}"], check=False, capture_output=True)
         remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{REPO_NAME}.git"
-        result = subprocess.run(["git", "push", remote_url, "HEAD:main"], 
-                               check=False, capture_output=True, text=True)
+        result = subprocess.run(["git", "push", remote_url, "HEAD:main"], check=False, capture_output=True, text=True)
         if result.returncode == 0:
-            print("✅ Estado commiteado y subido al repositorio exitosamente.")
+            print("✅ Estado commiteado.")
             return True
         else:
-            print(f"⚠️ No se pudo hacer push (no es crítico, el short ya se subió): {result.stderr[:150]}")
+            print(f"⚠️ No se pudo hacer push: {result.stderr[:100]}")
             return False
     except Exception as e:
-        print(f"⚠️ Error al commitear estado: {e}")
+        print(f"⚠️ Error commit: {e}")
         return False
 
 def elegir_siguiente_signo(estado):
     indice = estado.get("indice", 0)
     publicados_hoy = estado.get("publicados_hoy", [])
     
-    # Si por alguna razón ya se publicaron los 12 hoy, reiniciar ciclo
     if len(publicados_hoy) >= 12:
-        print("🔄 Los 12 signos ya fueron publicados. Reiniciando ciclo completo...")
+        print("🔄 Ciclo completado. Reiniciando...")
         indice = 0
         publicados_hoy = []
     
-    # Obtener el siguiente signo de la cola
     signo = SIGNOS_COLA[indice % 12]
     
-    # Seguridad extra: verificar que no esté ya publicado hoy
     if signo["nombre"] in publicados_hoy:
-        print(f"⚠️ {signo['nombre']} ya fue publicado hoy, buscando siguiente en la secuencia...")
         for i in range(1, 12):
             candidato = SIGNOS_COLA[(indice + i) % 12]
             if candidato["nombre"] not in publicados_hoy:
@@ -162,7 +154,6 @@ def elegir_siguiente_signo(estado):
                 indice = (indice + i) % 12
                 break
     
-    # Avanzar el índice para la próxima ejecución
     estado["indice"] = (indice + 1) % 12
     if signo["nombre"] not in publicados_hoy:
         publicados_hoy.append(signo["nombre"])
@@ -171,7 +162,7 @@ def elegir_siguiente_signo(estado):
     return signo
 
 # ================================================================
-# 3. BUSCAR ÚLTIMO VIDEO LARGO DEL CANAL
+# 3. YOUTUBE
 # ================================================================
 def obtener_credenciales_youtube():
     yt_token = json.loads(YT_TOKEN_STR)
@@ -179,20 +170,13 @@ def obtener_credenciales_youtube():
                         token_uri=yt_token.get("token_uri"), client_id=yt_token.get("client_id"),
                         client_secret=yt_token.get("client_secret"), scopes=yt_token.get("scopes"))
     if creds.expired and creds.refresh_token:
-        try:
-            creds.refresh(Request())
-            print("🔄 Token de YouTube refrescado exitosamente.")
-        except Exception as e:
-            print(f"❌ No se pudo refrescar el token: {e}")
-            raise
+        creds.refresh(Request())
     return creds
 
 def buscar_ultimo_video_largo():
     try:
         youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
-        request = youtube.search().list(
-            part="snippet", forMine=True, type="video", maxResults=5, order="date"
-        )
+        request = youtube.search().list(part="snippet", forMine=True, type="video", maxResults=5, order="date")
         response = request.execute()
         for item in response.get("items", []):
             video_id = item["id"]["videoId"]
@@ -200,134 +184,100 @@ def buscar_ultimo_video_largo():
             if stats.get("items"):
                 duration = stats["items"][0]["contentDetails"]["duration"]
                 if "M" in duration:
-                    title = stats["items"][0]["snippet"]["title"]
-                    print(f"🎬 Último video largo detectado: {title[:50]}...")
                     return video_id
         return None
     except Exception as e:
-        print(f"⚠️ No se pudo buscar el último video largo: {e}")
+        print(f"⚠️ Error buscando video largo: {e}")
         return None
 
 # ================================================================
-# 4. IA (DEEPSEEK) - PROMPT SEO EXPERTO
+# 4. DEEPSEEK
 # ================================================================
 PROMPT_SHORT_SEO = """
-Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO. Tono: femenino, cálido, místico, URGENTE.
+Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
-Genera un guion para un YouTube SHORT de 25-30 segundos sobre {signo}.
+Genera un guion para un YouTube SHORT de 25-30 segundos.
 
-REGLAS CRÍTICAS DE SEO EXPERTO (ESTILO VIDIO):
-
-1. TÍTULO (60-80 caracteres): Debe seguir UNA de estas fórmulas de alto CTR:
-   - Fórmula A: "Señales claras para {signo}: [Beneficio] #{signo_lower} #[tema] #astrologia"
-   - Fórmula B: "Secretos del cosmos para {signo} hoy #{signo_lower} #astrologia #zodiaco"
-   - Fórmula C: "Atención {signo}: No ignores este mensaje #{signo_lower} #astrologia #mensaje"
-   - Fórmula D: "La energía de {signo} está imparable hoy #{signo_lower} #energia #horoscopo"
-   - Fórmula E: "{signo}: El universo te envía una señal urgente #{signo_lower} #horoscopo #astrologia"
-   Usa palabras de alto impacto: señales, secretos, mensaje urgente, no ignores, el universo, energía, dinero, amor, pasión, cosmos.
-   INCLUYE 3 hashtags al final del título.
-
-2. GUION (65-80 palabras para durar 25-30 segundos). Estructura:
-   - Gancho (3-4 seg): "{signo}, este mensaje del universo es solo para ti..."
-   - Mensaje flash (15 seg): Energía del día, amor/relaciones, dinero/trabajo en frases cortas y poderosas
-   - Mantra (4 seg): Frase de 5-7 palabras para decretar
-   - CTA (5 seg): "Para ver los otros 11 signos, ve al video completo en mi canal"
-
-3. DESCRIPCIÓN (2-3 líneas): Frase mística + CTA al video largo + 3 hashtags.
-
-4. COMENTARIO FIJADO: Pregunta corta para que los seguidores comenten su signo y decreten.
-
-5. IMAGEN: Prompt en inglés (vertical, vibrante, místico, sin texto).
+REGLAS:
+1. TÍTULO (60-80 chars): Usa fórmulas como "Señales claras para {signo}: [Beneficio]" o "{signo}: Mensaje URGENTE". INCLUYE 3 hashtags.
+2. GUION (65-80 palabras): Gancho + Energía/Amor/Dinero + Mantra + CTA al video largo.
+3. DESCRIPCIÓN: 2 líneas místicas + CTA.
+4. COMENTARIO FIJADO: Pregunta corta.
 
 Responde SOLO JSON:
 {{
-  "titulo": "Señales claras para {signo}: Dinero y pasión #{signo_lower} #dinero #astrologia",
+  "titulo": "...",
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
-  "visual_prompt": "vertical mystical {elemento} energy, vibrant glowing, 8k, cinematic"
+  "visual_prompt": "vertical mystical {elemento} energy"
 }}
 """
 
 def llamar_deepseek_short(signo, fecha):
     signo_lower = normalizar_ascii(signo["nombre"])
     prompt = PROMPT_SHORT_SEO.format(
-        fecha=fecha,
-        signo=signo["nombre"],
-        simbolo=signo["simbolo"],
-        elemento=signo["elemento"],
-        signo_lower=signo_lower
+        fecha=fecha, signo=signo["nombre"], simbolo=signo["simbolo"], 
+        elemento=signo["elemento"], signo_lower=signo_lower
     )
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompt}],
-        "temperature": 0.8,
-        "response_format": {"type": "json_object"}
-    }
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], 
+               "temperature": 0.8, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
-            print(f"    Intento {i+1}/3 con DeepSeek para {signo['nombre']}...")
-            r = requests.post("https://api.deepseek.com/v1/chat/completions", 
-                            headers=headers, json=payload, timeout=60)
+            print(f"    Intento {i+1}/3 con DeepSeek...")
+            r = requests.post("https://api.deepseek.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
             r.raise_for_status()
             texto = r.json()["choices"][0]["message"]["content"].strip()
             t = re.sub(r"```(?:json)?", " ", texto, flags=re.I)
             i_json, j_json = t.find("{"), t.rfind("}")
-            if i_json == -1 or j_json == -1: raise ValueError("sin JSON")
             datos = json.loads(t[i_json:j_json + 1], strict=False)
             
             palabras = len(datos.get("guion", "").split())
             if palabras < 55 or palabras > 90:
-                raise ValueError(f"Guion con {palabras} palabras (debe ser 65-80 para 25+ seg)")
+                raise ValueError(f"Guion con {palabras} palabras")
             
-            titulo = datos.get("titulo", "")
-            if "#" not in titulo:
-                print(f"⚠️ Título sin hashtags, añadiendo automáticamente...")
-                datos["titulo"] = f"{titulo} #{signo_lower} #astrologia #horoscopo"
+            if "#" not in datos.get("titulo", ""):
+                datos["titulo"] = f"{datos['titulo']} #{signo_lower} #astrologia #horoscopo"
             
             return datos
         except Exception as e:
-            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
+            print(f"️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(2)
-    raise Exception("Fallo DeepSeek tras 3 intentos")
+    raise Exception("Fallo DeepSeek")
 
 # ================================================================
-# 5. IMÁGENES (CLOUDFLARE 1 INTENTO → PEXELS)
+# 5. IMÁGENES (CON PROMPTS ÉPICOS)
 # ================================================================
 def generar_cf_vertical(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
     clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
-    clean_prompt = ' '.join(clean_prompt.split())
-    safe_prompt = f"{clean_prompt}, vertical composition, mystical, vibrant colors, 8k, highly detailed, no text, no watermark"
+    safe_prompt = f"{clean_prompt}, vertical composition, 8k, highly detailed, no text, no watermark"
     payload = {"prompt": safe_prompt, "steps": 4}
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=60)
         if r.status_code != 200:
-            print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
+            print(f"   ❌ Cloudflare HTTP {r.status_code}")
         r.raise_for_status()
         result = r.json()
         if "result" not in result or "image" not in result["result"]:
-            raise ValueError(f"Sin imagen: {str(result)[:200]}")
+            raise ValueError("Sin imagen")
         with open(ruta, "wb") as f:
             f.write(base64.b64decode(result["result"]["image"]))
         with Image.open(ruta) as im:
             im = im.convert("RGB")
             w, h = im.size
             target_ratio = 9/16
-            current_ratio = w/h
-            if current_ratio > target_ratio:
+            if w/h > target_ratio:
                 new_w = int(h * target_ratio)
-                left = (w - new_w) // 2
-                im = im.crop((left, 0, left + new_w, h))
+                im = im.crop(((w - new_w) // 2, 0, (w + new_w) // 2, h))
             else:
                 new_h = int(w / target_ratio)
-                top = (h - new_h) // 2
-                im = im.crop((0, top, w, top + new_h))
+                im = im.crop((0, (h - new_h) // 2, w, (h + new_h) // 2))
             im = im.resize((W_SHORT, H_SHORT), Image.LANCZOS)
             im.save(ruta, "JPEG", quality=92)
         return ruta
@@ -351,21 +301,24 @@ def generar_pexels_vertical(query, ruta):
         im.save(ruta, "JPEG", quality=92)
     return ruta
 
-def obtener_imagen_short(prompt, ruta):
+def obtener_imagen_short(signo, ruta):
+    # ✅ USAR EL PROMPT ÉPICO SEGÚN EL ELEMENTO DEL SIGNO
+    prompt_epico = PROMPTS_IMAGEN_ELEMENTO.get(signo["elemento"], PROMPTS_IMAGEN_ELEMENTO["fuego"])
+    
     try:
         print(f"   ☁️ CF Intento 1/1...")
-        return generar_cf_vertical(prompt, ruta)
+        return generar_cf_vertical(prompt_epico, ruta)
     except Exception as e:
         print(f"   ⚠️ CF falló, usando Pexels...")
+    
     try:
-        query = prompt + " mystical cosmic vibrant"
-        return generar_pexels_vertical(query, ruta)
+        return generar_pexels_vertical(prompt_epico, ruta)
     except Exception as e:
-        print(f"   ❌ Pexels también falló: {e}")
+        print(f"   ❌ Pexels falló: {e}")
         return None
 
 # ================================================================
-# 6. AUDIO Y RENDERIZADO VERTICAL
+# 6. AUDIO Y VIDEO
 # ================================================================
 async def generar_audio(texto, ruta):
     await edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%").save(ruta)
@@ -373,24 +326,30 @@ async def generar_audio(texto, ruta):
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
-    print(f"   ⏱️ Duración del audio: {dur:.1f} segundos")
+    print(f"   ⏱️ Duración: {dur:.1f} seg")
+    
     img = Image.open(img_path).convert("RGB")
     img = ImageEnhance.Brightness(img).enhance(1.1)
     img = ImageEnhance.Contrast(img).enhance(1.2)
     img = ImageEnhance.Color(img).enhance(1.4)
+    
     draw = ImageDraw.Draw(img)
     try:
         font_nombre = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 140)
         font_mantra = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 55)
     except:
         font_nombre = font_mantra = ImageFont.load_default()
+    
     texto_nombre = f"{signo['simbolo']} {signo['nombre'].upper()}"
     draw.text((W_SHORT//2, 400), texto_nombre, font=font_nombre, 
               fill=(255, 255, 255), anchor="mm", stroke_width=12, stroke_fill=(0, 0, 0))
+    
     mantra = guion.split('.')[-1].strip()[:80]
     draw.text((W_SHORT//2, 1600), mantra, font=font_mantra, 
               fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
+    
     img.save("temp_short_frame.jpg")
+    
     _VIG = {}
     def vignette_vert(size, base=1.0, fuerza=0.3):
         k = (size, base)
@@ -400,12 +359,14 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
             d = np.clip(np.sqrt(x ** 2 + y ** 2) / 1.414, 0, 1)
             _VIG[k] = ((1 - fuerza * d ** 2.2) * base).astype(np.float32)[..., None]
         return _VIG[k]
+    
     def frame(t):
         base = Image.open("temp_short_frame.jpg").convert("RGB")
         sz = (int(W_SHORT * 1.15), int(H_SHORT * 1.15))
         base = ImageOps.fit(base, sz, Image.LANCZOS)
         arr = np.asarray(base, dtype=np.float32) * vignette_vert(sz, 1.0)
         base = Image.fromarray(arr.astype(np.uint8))
+        
         p = min(max(t / dur, 0), 1)
         cw = sz[0] / (1 + 0.15 * p)
         ch = cw * sz[1] / sz[0]
@@ -413,13 +374,16 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
         x0 = mx / 2
         y0 = my / 2 + (my * 0.3 * p)
         fr = np.asarray(base.resize((W_SHORT, H_SHORT), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch)))
+        
         f = 1.0
         if t < 0.5: f = t / 0.5
         if t > dur - 0.5: f = min(f, max(0.0, (dur - t) / 0.5))
         if f < 1.0: fr = (fr.astype(np.float32) * f).astype(np.uint8)
         return fr
+    
     video = VideoClip(frame, duration=dur)
     audio = AudioFileClip(audio_path)
+    
     musicas = [f for f in os.listdir(".") if f.lower().endswith(".mp3") and not f.startswith("temp_")]
     if musicas:
         musica = random.choice(musicas)
@@ -428,42 +392,33 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
             if bg.duration < dur:
                 bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
             audio_final = CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)])
-            print(f"🎵 Música de fondo: {musica}")
+            print(f"🎵 Música: {musica}")
         except:
             audio_final = audio
     else:
         audio_final = audio
+    
     video = video.set_audio(audio_final)
-    print("🎬 Renderizando Short vertical...")
+    print("🎬 Renderizando...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", 
                          threads=4, preset="ultrafast", logger=None)
     return salida
 
 # ================================================================
-# 7. SUBIDA A YOUTUBE COMO SHORT
+# 7. SUBIDA
 # ================================================================
 def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
     desc = f"{datos['descripcion']}\n\n"
     if video_largo_id:
-        desc += f"🎥 VIDEO COMPLETO DE HOY:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
+        desc += f"🎥 VIDEO COMPLETO:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
     desc += f"🔔 Suscríbete: {CANAL_LINK}{HASHTAGS_SHORTS}\n\n#{normalizar_ascii(signo['nombre'])}"
     tags = construir_tags_shorts_experto(signo)
     body = {
-        "snippet": {
-            "title": datos["titulo"][:100],
-            "description": desc[:5000],
-            "tags": tags,
-            "categoryId": "22",
-            "defaultLanguage": "es",
-            "defaultAudioLanguage": "es"
-        },
-        "status": {
-            "privacyStatus": "private",
-            "publishAt": hora_utc,
-            "selfDeclaredMadeForKids": False,
-            "containsSyntheticMedia": True
-        }
+        "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": tags, 
+                    "categoryId": "22", "defaultLanguage": "es", "defaultAudioLanguage": "es"},
+        "status": {"privacyStatus": "private", "publishAt": hora_utc, 
+                   "selfDeclaredMadeForKids": False, "containsSyntheticMedia": True}
     }
     media = MediaFileUpload(ruta_video, chunksize=4*1024*1024, resumable=True)
     req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
@@ -482,15 +437,11 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     print(f"✅ Short subido. ID: {video_id}")
     if datos.get("comentario_fijado"):
         try:
-            comentario = datos["comentario_fijado"]
-            if video_largo_id:
-                comentario += f"\n\n🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}"
             youtube.commentThreads().insert(part="snippet", body={
-                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": comentario}}}
+                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}
             }).execute()
-            print("✅ Comentario fijado publicado.")
         except HttpError as e:
-            print(f"⚠️ Error comentario (normal en videos programados): {e}")
+            print(f"⚠️ Error comentario: {e}")
     return video_id
 
 # ================================================================
@@ -499,16 +450,13 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
 def main():
     try:
         ahora = datetime.now(TZ)
-        print(f"🤖 Bot Shorts ejecutándose...")
+        print(f"🤖 Bot ejecutándose...")
         
-        # ✅ CARGAR ESTADO Y ELEGIR SIGNO DE LA COLA
         estado = cargar_estado()
         signo = elegir_siguiente_signo(estado)
-        print(f"🎯 Signo elegido de la cola: {signo['simbolo']} {signo['nombre']}")
-        print(f"📊 Progreso hoy: {len(estado['publicados_hoy'])}/12 signos publicados")
-        print(f"📋 Ya publicados hoy: {estado['publicados_hoy']}")
+        print(f"🎯 Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
+        print(f" Progreso: {len(estado['publicados_hoy'])}/12")
         
-        # HORARIOS NATURALES ALEATORIOS
         hora_actual = ahora.hour
         if 4 <= hora_actual < 6:
             hora_base = ahora.replace(hour=5, minute=0, second=0, microsecond=0)
@@ -525,32 +473,30 @@ def main():
         
         hora_final = hora_base + timedelta(minutes=minutos_aleatorios)
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        print(f"📅 Programado para: {hora_final:%H:%M} (CDMX)")
+        print(f"📅 Programado: {hora_final:%H:%M}")
         
-        print("🔍 Buscando último video largo del canal...")
+        print("🔍 Buscando video largo...")
         video_largo_id = buscar_ultimo_video_largo()
         
         fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
-        print(f"🧠 1. Generando guion SEO experto para {signo['nombre']}...")
+        print(f"🧠 Generando guion...")
         datos = llamar_deepseek_short(signo, fecha_hoy)
-        print(f"   📝 Título SEO: {datos.get('titulo', 'N/A')}")
-        print(f"   📊 Palabras del guion: {len(datos.get('guion', '').split())}")
+        print(f"   📝 Título: {datos.get('titulo', 'N/A')}")
         
-        print("🎨 2. Generando activos...")
-        obtener_imagen_short(datos.get("visual_prompt", f"vertical mystical {signo['elemento']} energy"), "temp_short_img.jpg")
+        print("🎨 Generando imagen ÉPICA...")
+        obtener_imagen_short(signo, "temp_short_img.jpg")
         asyncio.run(generar_audio(datos["guion"], "temp_short_audio.mp3"))
         
-        print("🎬 3. Renderizando Short...")
+        print("🎬 Renderizando...")
         renderizar_short(signo, datos["guion"], "temp_short_img.jpg", "temp_short_audio.mp3", "short_final.mp4")
         
-        print("📤 4. Subiendo a YouTube...")
+        print("📤 Subiendo...")
         subir_short_youtube("short_final.mp4", datos, signo, video_largo_id, hora_utc)
         
-        # ✅ GUARDAR ESTADO Y HACER COMMIT AUTOMÁTICO
         guardar_estado(estado)
         hacer_commit_estado()
         
-        print(f"✨ ¡SHORT COMPLETADO! {signo['nombre']} programado para {hora_final:%H:%M}")
+        print(f"✨ ¡COMPLETADO! {signo['nombre']} para {hora_final:%H:%M}")
         
         for f in os.listdir():
             if f.startswith("temp_") or f == "short_final.mp4":
@@ -558,7 +504,7 @@ def main():
                 except: pass
                 
     except Exception as e:
-        print(f"❌ ERROR FATAL: {e}")
+        print(f"❌ ERROR: {e}")
         traceback.print_exc()
         sys.exit(1)
 
