@@ -1,12 +1,13 @@
 {
   "fecha": "2026-10-11",
-  "indice": 1,
+  "indice": 2,
   "publicados_hoy": [
     "Escorpio",
     "Sagitario",
     "Capricornio",
     "Acuario",
     "Piscis",
-    "Aries"
+    "Aries",
+    "Tauro"
   ]
 }
