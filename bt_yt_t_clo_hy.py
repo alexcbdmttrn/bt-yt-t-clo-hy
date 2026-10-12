@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN OPTIMIZADA
-Fix: 1 solo intento Cloudflare → Pexels inmediato. Todo lo demás igual.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN SEO PREMIUM LARGO
+Fix: Títulos de alto CTR (estilo VidIQ), descripciones SEO enriquecidas, 
+     tags optimizados, 1 intento Cloudflare → Pexels inmediato.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -32,19 +33,20 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS Y HASHTAGS
+# 🏷️ MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ PARA VIDEOS LARGOS)
 # ================================================================
 TAGS_GENERALES_SIEMPRE = [
     "horoscopo", "horoscopo diario", "astrologia", "zodiaco", "tu cielo hoy",
     "aries", "tauro", "geminis", "cancer", "leo", "virgo", "libra", "escorpio",
     "sagitario", "capricornio", "acuario", "piscis", "mensaje del universo",
-    "energia del dia", "fase lunar", "crecimiento espiritual", "bienestar"
+    "energia del dia", "fase lunar", "crecimiento espiritual", "bienestar",
+    "lectura de tarot", "carta astral", "prediccion astral"
 ]
 
 TAGS_POR_MODO = {
-    "daily": ["horoscopo de hoy", "horoscopo hoy", "prediccion de hoy", "energia de hoy", "mensaje de hoy"],
-    "weekly": ["horoscopo semanal", "horoscopo de la semana", "semana astral", "prediccion semanal"],
-    "monthly": ["horoscopo mensual", "horoscopo del mes", "prediccion mensual", "ciclo lunar"]
+    "daily": ["horoscopo de hoy", "horoscopo hoy", "prediccion de hoy", "energia de hoy", "mensaje de hoy", "horoscopo completo"],
+    "weekly": ["horoscopo semanal", "horoscopo de la semana", "semana astral", "prediccion semanal", "tendencias zodiacales"],
+    "monthly": ["horoscopo mensual", "horoscopo del mes", "prediccion mensual", "ciclo lunar", "luna llena", "luna nueva"]
 }
 
 HASHTAGS_YOUTUBE = "\n\n#Horoscopo #Astrologia #Zodiaco #TuCieloHoy #MensajeDelUniverso #HoroscopoDeHoy #EnergiaDelDia #SignosDelZodiaco"
@@ -57,38 +59,46 @@ def normalizar_ascii(texto):
 def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     tags_finales = []
     total_chars = 0
+    
+    # 1. Tags generales
     for tag in TAGS_GENERALES_SIEMPRE:
         tag_limpio = normalizar_ascii(tag).strip()
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
         tag_limpio = re.sub(r'\s+', ' ', tag_limpio).strip()
-        if 2 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
+        if 3 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
             if total_chars + len(tag_limpio) + 1 <= 480:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
+                
+    # 2. Tags específicos del modo
     for tag in TAGS_POR_MODO.get(modo, []):
         tag_limpio = normalizar_ascii(tag).strip()
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
         tag_limpio = re.sub(r'\s+', ' ', tag_limpio).strip()
-        if 2 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
+        if 3 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
             if total_chars + len(tag_limpio) + 1 <= 480:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
+                
+    # 3. Tags dinámicos de la IA (Long-tail)
     if isinstance(tags_dinamicos_ia, list):
         for tag in tags_dinamicos_ia:
             t = normalizar_ascii(str(tag)).strip()
             t = re.sub(r'[^a-z0-9\s]', '', t)
             t = re.sub(r'\s+', ' ', t).strip()
-            if 2 <= len(t) <= 30 and t not in tags_finales:
+            if 3 <= len(t) <= 30 and t not in tags_finales:
                 if total_chars + len(t) + 1 <= 480:
                     tags_finales.append(t)
                     total_chars += len(t) + 1
+                    
     if not tags_finales:
         tags_finales = TAGS_GENERALES_SIEMPRE[:15]
-    print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars} caracteres")
+        
+    print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars}/480 caracteres")
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - Tu Cielo Hoy (1 Intento CF + Pexels)")
+print("🔮 BT_YT_T_CLO_HY MASTER - SEO PREMIUM VIDEOS LARGOS")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -127,33 +137,42 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK)
+# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL
 # ================================================================
 PROMPT_DIARIO = """
-Eres la astróloga más prestigiosa de YouTube. Tono: femenino, cálido, místico.
+Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ). Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
-REGLAS CRÍTICAS DE DURACIÓN (PARA VIDEO DE ~8 MINUTOS):
-1. Cada signo debe tener un guion de EXACTAMENTE 90 a 110 palabras. NI MÁS NI MENOS.
-2. Estructura del guion: Saludo con el nombre del signo (ej: "Aries, hoy la energía..."), Energía general, Amor, Dinero, Mantra final. Sé concisa y directa.
-3. TÍTULO: Estructura "Horóscopo HOY: [Gancho] | [Tránsito lunar]". Máx 65 chars.
-4. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso, colores vibrantes) y 2-3 palabras MAYÚSCULAS MÁXIMO para el texto.
-5. El guion DEBE comenzar EXPLÍCITAMENTE mencionando el nombre del signo.
+REGLAS CRÍTICAS DE SEO Y RETENCIÓN:
+1. TÍTULO (Máx 70 chars, Alto CTR): Elige UNA de estas fórmulas para generar curiosidad y urgencia:
+   - Opción A: "HORÓSCOPO HOY: El Universo tiene un mensaje URGENTE para ti 🔮"
+   - Opción B: "No ignores esta SEÑAL hoy: Horóscopo Diario para los 12 Signos ✨"
+   - Opción C: "HORÓSCOPO DEL DÍA: Revelación inesperada en Amor y Dinero 💫"
+   (Añade siempre | [Tránsito lunar actual] al final, ej: "| Luna en Cáncer")
+2. DESCRIPCIÓN (SEO Enriquecido): 3 párrafos. 
+   - P1: Gancho emocional mencionando "horóscopo diario", "mensaje del universo" y la energía de hoy.
+   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) usando palabras clave naturales.
+   - P3: Llamado a la acción fuerte para suscribirse y comentar su signo.
+3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..."
+4. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso, colores vibrantes, high key lighting) y 2-3 palabras MAYÚSCULAS.
 
 Responde SOLO JSON:
 {{
-  "titulo": "...", "descripcion": "...", "tags": ["tag1"], "comentario_fijado": "...",
+  "titulo": "HORÓSCOPO HOY: El Universo tiene un mensaje URGENTE para ti 🔮 | Luna en Cáncer",
+  "descripcion": "...",
+  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral"],
+  "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios para decretar.",
   "miniatura_prompt": "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k, no text",
-  "miniatura_texto": "HORÓSCOPO HOY",
-  "miniatura_banner": "MENSAJE DEL UNIVERSO",
+  "miniatura_texto": "MENSAJE URGENTE",
+  "miniatura_banner": "DEL UNIVERSO",
   "signos": [
     {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "bright red sunrise fire sparks"}},
     {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "bright green forest sunlight"}},
     {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "bright wind blowing trees"}},
     {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "bright ocean waves calm"}},
-    {{"nombre": "Leo", "simbolo": "", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "bright golden sunset"}},
-    {{"nombre": "Virgo", "simbolo": "", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "bright morning dew leaves"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "bright golden sunset"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "bright morning dew leaves"}},
     {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "Libra, el equilibrio...", "visual_prompt": "bright pink sunset clouds"}},
     {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "Escorpio, tu intensidad...", "visual_prompt": "bright deep ocean mystical"}},
     {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "bright mountain peak sunrise"}},
@@ -164,8 +183,8 @@ Responde SOLO JSON:
 }}
 """
 
-PROMPT_SEMANAL = PROMPT_DIARIO.replace("DIARIO", "SEMANAL").replace("90 a 110 palabras", "150 a 180 palabras")
-PROMPT_MENSUAL = PROMPT_DIARIO.replace("DIARIO", "MENSUAL").replace("90 a 110 palabras", "250 a 300 palabras")
+PROMPT_SEMANAL = PROMPT_DIARIO.replace("DIARIO", "SEMANAL").replace("90-110 palabras", "150-180 palabras").replace("HORÓSCOPO HOY", "HORÓSCOPO SEMANAL")
+PROMPT_MENSUAL = PROMPT_DIARIO.replace("DIARIO", "MENSUAL").replace("90-110 palabras", "250-300 palabras").replace("HORÓSCOPO HOY", "HORÓSCOPO MENSUAL")
 
 def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     if modo == "weekly": prompt = PROMPT_SEMANAL
@@ -173,7 +192,7 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     else: prompt = PROMPT_DIARIO
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.7, "response_format": {"type": "json_object"}}
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.8, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -199,32 +218,24 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    
     clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
     clean_prompt = ' '.join(clean_prompt.split())
     safe_prompt = f"{clean_prompt}, mystical, vibrant colors, 8k resolution, highly detailed, no text, no watermark"
-    
     payload = {"prompt": safe_prompt, "steps": 4}
-    
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=60)
-        
         if r.status_code != 200:
-            print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:400]}")
-            
+            print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
         r.raise_for_status()
-        
         result = r.json()
         if "result" not in result or "image" not in result["result"]:
             raise ValueError(f"Respuesta sin imagen: {str(result)[:200]}")
-            
         with open(ruta, "wb") as f:
             f.write(base64.b64decode(result["result"]["image"]))
         with Image.open(ruta) as im:
             im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
             im.save(ruta, "JPEG", quality=92)
         return ruta
-        
     except Exception as e:
         print(f"   ❌ Excepción en Cloudflare: {e}")
         raise
@@ -244,14 +255,11 @@ def generar_pexels(query, ruta):
     return ruta
 
 def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
-    # ✅ CAMBIO: Solo 1 intento con Cloudflare, si falla va directo a Pexels
     try:
         print(f"   ☁️ CF Intento 1/1...")
         return generar_cf(prompt, ruta)
     except Exception as e:
         print(f"   ⚠️ CF falló, usando Pexels inmediatamente...")
-    
-    # Fallback directo a Pexels
     try:
         query = prompt + " bright vibrant mystical" if es_miniatura else prompt + " vivid cinematic"
         return generar_pexels(query, ruta)
@@ -298,7 +306,6 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         img = ImageEnhance.Contrast(img).enhance(1.2)
         img = ImageEnhance.Color(img).enhance(1.6)
         img = img.convert("RGBA")
-        
         fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         
         palabras = texto_principal.upper().split()
@@ -452,8 +459,10 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         caps.append(f"{mins:02d}:{secs:02d} {s['simbolo']} {s['nombre']}: {s['titulo_cap']}")
         tiempo_acumulado += duracion_real + 0.5
         
-    desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete: {CANAL_LINK}"
+    # ✅ DESCRIPCIÓN SEO ENRIQUECIDA
+    desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete para más mensajes del universo: {CANAL_LINK}"
     desc += HASHTAGS_YOUTUBE
+    
     tags_finales = construir_tags_finales(datos.get("tags", []), modo)
     
     body = {
@@ -472,7 +481,7 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"️ Reintentando subida ({reintentos}/8)...")
+                print(f"⚠️ Reintentando subida ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
             
@@ -525,7 +534,7 @@ def main():
         fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
         fase_lunar = "Creciente"
         
-        print(f"🧠 1. Generando contenido con DeepSeek (modo {tipo})...")
+        print(f"🧠 1. Generando contenido SEO Premium con DeepSeek (modo {tipo})...")
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
         
         if titulo_ya_publicado(datos["titulo"]):
@@ -540,7 +549,7 @@ def main():
             
         print("🖼️ 3. Creando miniatura 8K Brillante...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
-        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "HORÓSCOPO HOY"), datos.get("miniatura_banner", "MENSAJE DEL UNIVERSO"), "miniatura.jpg")
+        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "MENSAJE URGENTE"), datos.get("miniatura_banner", "DEL UNIVERSO"), "miniatura.jpg")
         
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
