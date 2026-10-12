@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN SEO PREMIUM VIDIO
-Fix: Títulos de alto impacto (90+ score), Tags estratégicos (Generales + Específicos + Long-Tail) hasta 480 chars.
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN VARIACIÓN VIRAL
+Fix: Títulos y descripciones 100% únicos y variados (anti-repetición), SEO VidIQ Premium, 
+     Tags estratégicos (Generales + Específicos + Long-Tail), Imágenes épicas por elemento.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -63,19 +64,19 @@ def normalizar_ascii(texto):
     return texto.lower()
 
 # ================================================================
-# 🚀 MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ)
+# 🚀 MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ) - INTACTO Y OPTIMIZADO
 # ================================================================
 def construir_tags_shorts_premium(signo):
     signo_norm = normalizar_ascii(signo["nombre"])
     
-    # 1. Keywords Generales de Alto Volumen (Siempre relevantes)
+    # 1. Keywords Generales de Alto Volumen
     generales = [
         "shorts", "horoscopo", "astrologia", "zodiaco", "mensaje del universo", 
         "energia del dia", "horoscopo diario", "ley de atraccion", "espiritualidad", 
         "crecimiento personal", "universo"
     ]
     
-    # 2. Keywords Específicas del Signo (Alta intención de búsqueda)
+    # 2. Keywords Específicas del Signo
     especificas = [
         f"horoscopo {signo_norm}", f"{signo_norm} hoy", f"signo {signo_norm}", 
         f"{signo_norm} amor", f"{signo_norm} dinero", f"prediccion {signo_norm}",
@@ -96,11 +97,8 @@ def construir_tags_shorts_premium(signo):
     total_chars = 0
     
     for tag in all_tags:
-        # Limpiar caracteres especiales
         clean_tag = re.sub(r'[^a-z0-9\sáéíóúñ]', '', tag).strip()
-        # VidIQ recomienda tags entre 3 y 30 caracteres
         if 3 <= len(clean_tag) <= 30 and clean_tag not in unique_tags:
-            # YouTube permite hasta 500 caracteres, dejamos un margen de seguridad en 480
             if total_chars + len(clean_tag) + 1 <= 480:
                 unique_tags.append(clean_tag)
                 total_chars += len(clean_tag) + 1
@@ -109,7 +107,7 @@ def construir_tags_shorts_premium(signo):
     return unique_tags
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - SEO PREMIUM NIVEL VIDIQ")
+print("📱 BT_YT_SHORTS_CLO_HY - VARIACIÓN VIRAL + SEO PREMIUM")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -118,7 +116,7 @@ if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TO
     sys.exit(1)
 
 # ================================================================
-# 2. ESTADO DEL BOT
+# 2. ESTADO DEL BOT (SECUENCIA CONTINUA)
 # ================================================================
 def cargar_estado():
     try:
@@ -220,35 +218,36 @@ def buscar_ultimo_video_largo():
         return None
 
 # ================================================================
-# 4. DEEPSEEK - PROMPT SEO PREMIUM VIDIO
+# 4. DEEPSEEK - PROMPT DE VARIACIÓN VIRAL (ANTI-REPETICIÓN)
 # ================================================================
 PROMPT_SHORT_SEO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ Premium). Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
-Genera un guion para un YouTube SHORT de 25-30 segundos con SEO MÁXIMO.
+Genera un guion para un YouTube SHORT de 25-35 segundos con SEO MÁXIMO y VARIEDAD TOTAL.
 
-REGLAS CRÍTICAS DE SEO (NO LAS ROMPAS):
-1. TÍTULO (Máx 75 caracteres, Puntaje 90+): DEBE seguir EXACTAMENTE esta estructura:
-   "[EMOJI] [SIGNO]: [PALABRA DE PODER] de [BENEFICIO] #[signo_lower] #horoscopo #astrologia"
-   Ejemplos válidos: 
-   - "🔮 TAURO: Revelación URGENTE de Dinero y Amor #tauro #horoscopo #astrologia"
-   - "⚠️ GÉMINIS: No ignores esta señal del Universo hoy #geminis #horoscopo #astrologia"
-   Usa palabras de poder: Revelación, Urgente, Secretos, Imparable, Señal, Verdad.
+REGLAS CRÍTICAS DE SEO Y VARIEDAD (NO LAS ROMPAS):
+1. TÍTULO (Máx 75 caracteres): DEBES elegir UNA de estas estructuras de forma ALEATORIA para que NUNCA se repitan entre signos:
+   - Opción A (Urgencia): "⚠️ [SIGNO]: No ignores esta señal del Universo hoy #[signo_lower] #horoscopo #astrologia"
+   - Opción B (Beneficio): "💰 [SIGNO]: Revelación inesperada de dinero y amor #[signo_lower] #zodiaco #astrologia"
+   - Opción C (Místico): "🔮 El cosmos tiene un mensaje urgente para [SIGNO] #[signo_lower] #horoscopo #energia"
+   - Opción D (Elemento): "🔥 [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco"
+   - Opción E (Destino): "✨ [SIGNO]: El universo conspira a tu favor en esto #[signo_lower] #horoscopo #astrologia"
+   (Usa el emoji que corresponda al elemento: 🔥Fuego, 🌍Tierra, 🌬️Aire, 🌊Agua).
 
-2. GUION (65-80 palabras): 
+2. DESCRIPCIÓN (ÚNICA): Escribe 2 líneas específicas para este signo, mencionando su elemento ({elemento}) y su energía actual. NO uses plantillas genéricas. Incluye el enlace al video largo.
+
+3. GUION (65-85 palabras): 
    - Gancho (3 seg): "{signo}, este mensaje del universo es solo para ti..."
-   - Cuerpo (15 seg): Energía, amor y dinero en frases cortas, poderosas y directas.
+   - Cuerpo (15 seg): Energía, amor y dinero en frases cortas, poderosas y únicas para este signo.
    - Mantra (4 seg): Frase de 5-7 palabras para decretar.
-   - CTA FINAL (5-7 seg, PERSUASIVO): "No te quedes con la duda. Encuentra mensajes diarios, semanales y mensuales exclusivos en los videos de mi canal. ¡Te espero!"
+   - CTA FINAL (5-7 seg, PERSUASIVO Y VARIADO): Elige una forma diferente de invitar a ver los videos largos (diarios, semanales, mensuales) en el canal.
 
-3. DESCRIPCIÓN (SEO Optimizada): 2 líneas que incluyan el nombre del signo 2 veces + "horóscopo" + "mensaje del universo" + Enlace al video largo.
-
-4. COMENTARIO FIJADO: Pregunta corta + "Mira el video completo en mi canal".
+4. COMENTARIO FIJADO: Pregunta corta y mística + "Mira el video completo en mi canal".
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 [SIGNO]: [PALABRA DE PODER] de [BENEFICIO] #[signo_lower] #horoscopo #astrologia",
+  "titulo": "🔥 [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco",
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
@@ -265,7 +264,7 @@ def llamar_deepseek_short(signo, fecha):
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], 
-               "temperature": 0.7, "response_format": {"type": "json_object"}}
+               "temperature": 0.85, "response_format": {"type": "json_object"}} # Temperatura un poco más alta para más creatividad
     
     for i in range(3):
         try:
@@ -278,10 +277,9 @@ def llamar_deepseek_short(signo, fecha):
             datos = json.loads(t[i_json:j_json + 1], strict=False)
             
             palabras = len(datos.get("guion", "").split())
-            if palabras < 55 or palabras > 90:
+            if palabras < 55 or palabras > 95:
                 raise ValueError(f"Guion con {palabras} palabras")
             
-            # Validación de seguridad para el título
             if "#" not in datos.get("titulo", ""):
                 datos["titulo"] = f"🔮 {signo['nombre']}: Mensaje del Universo #{signo_lower} #horoscopo #astrologia"
             
@@ -450,7 +448,6 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
 def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
     
-    # ✅ DESCRIPCIÓN OPTIMIZADA PARA SEO (Repite palabras clave naturalmente)
     signo_norm = normalizar_ascii(signo["nombre"])
     desc = f"{datos['descripcion']}\n\n"
     if video_largo_id:
@@ -458,7 +455,6 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     desc += f"🔔 Suscríbete para más mensajes del universo: {CANAL_LINK}\n\n"
     desc += f"Este horóscopo para {signo['nombre']} revela las energías de hoy. No olvides que el mensaje del universo y la astrología pueden guiarte. #horoscopo #{signo_norm} #astrologia #zodiaco #shorts"
     
-    # ✅ TAGS PREMIUM (Hasta 480 caracteres)
     tags = construir_tags_shorts_premium(signo)
     
     body = {
@@ -527,7 +523,7 @@ def main():
         video_largo_id = buscar_ultimo_video_largo()
         
         fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
-        print(f"🧠 Generando guion SEO Premium...")
+        print(f"🧠 Generando guion SEO Premium con VARIEDAD...")
         datos = llamar_deepseek_short(signo, fecha_hoy)
         print(f"   📝 Título SEO: {datos.get('titulo', 'N/A')}")
         
