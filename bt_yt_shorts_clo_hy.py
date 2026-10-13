@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN VARIACIÓN VIRAL
-Fix: Títulos y descripciones 100% únicos y variados (anti-repetición), SEO VidIQ Premium, 
-     Tags estratégicos (Generales + Específicos + Long-Tail), Imágenes épicas por elemento.
-     FIX CRÍTICO: Sistema de reintentos robusto para Edge TTS (soluciona error 403 de Microsoft).
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
+Fix: Rotación de 5 voces femeninas + Fallback a gTTS si Edge TTS es bloqueado (Error 403).
+     2 intentos Cloudflare, SEO VidIQ Premium, Imágenes épicas, Cola secuencial sin repeticiones.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -11,6 +10,7 @@ from zoneinfo import ZoneInfo
 import requests, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
 import edge_tts
+from gtts import gTTS
 from moviepy.editor import AudioFileClip, CompositeAudioClip, VideoClip, concatenate_audioclips
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -31,7 +31,16 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 REPO_NAME = os.getenv("GITHUB_REPOSITORY", "")
 
 CANAL_LINK = "https://www.youtube.com/@tucielhoy"
-VOZ_CANAL = "es-MX-DaliaNeural"
+
+# ✅ LISTA DE 5 VOCES FEMENINAS PARA ROTAR Y EVITAR MONOTONÍA
+VOICES_LIST = [
+    "es-MX-DaliaNeural",
+    "es-ES-ElviraNeural",
+    "es-AR-ElenaNeural",
+    "es-CO-SalomeNeural",
+    "es-US-PalomaNeural"
+]
+
 ESTADO_FILE = "estado_shorts.json"
 W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
@@ -65,26 +74,20 @@ def normalizar_ascii(texto):
     return texto.lower()
 
 # ================================================================
-# 🚀 MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ) - INTACTO Y OPTIMIZADO
+# 🚀 MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ)
 # ================================================================
 def construir_tags_shorts_premium(signo):
     signo_norm = normalizar_ascii(signo["nombre"])
-    
-    # 1. Keywords Generales de Alto Volumen
     generales = [
         "shorts", "horoscopo", "astrologia", "zodiaco", "mensaje del universo", 
         "energia del dia", "horoscopo diario", "ley de atraccion", "espiritualidad", 
         "crecimiento personal", "universo"
     ]
-    
-    # 2. Keywords Específicas del Signo
     especificas = [
         f"horoscopo {signo_norm}", f"{signo_norm} hoy", f"signo {signo_norm}", 
         f"{signo_norm} amor", f"{signo_norm} dinero", f"prediccion {signo_norm}",
         f"caracteristicas de {signo_norm}", f"{signo_norm} 2026"
     ]
-    
-    # 3. Keywords de Cola Larga (Long-Tail) - Las que dan el puntaje 90+ en VidIQ
     long_tail = [
         f"horoscopo diario para {signo_norm}", 
         f"mensaje urgente del universo para {signo_norm}", 
@@ -94,8 +97,7 @@ def construir_tags_shorts_premium(signo):
     ]
     
     all_tags = generales + especificas + long_tail
-    unique_tags = []
-    total_chars = 0
+    unique_tags, total_chars = [], 0
     
     for tag in all_tags:
         clean_tag = re.sub(r'[^a-z0-9\sáéíóúñ]', '', tag).strip()
@@ -108,7 +110,7 @@ def construir_tags_shorts_premium(signo):
     return unique_tags
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - VARIACIÓN VIRAL + SEO PREMIUM")
+print("📱 BT_YT_SHORTS_CLO_HY - VARIACIÓN VIRAL + ANTI-BLOQUEO TTS")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -132,8 +134,7 @@ def cargar_estado():
                 return data
             return data
     except:
-        hoy = datetime.now(TZ).strftime("%Y-%m-%d")
-        return {"fecha": hoy, "indice": 0, "publicados_hoy": []}
+        return {"fecha": datetime.now(TZ).strftime("%Y-%m-%d"), "indice": 0, "publicados_hoy": []}
 
 def guardar_estado(data):
     with open(ESTADO_FILE + ".tmp", "w", encoding="utf-8") as f:
@@ -190,7 +191,7 @@ def elegir_siguiente_signo(estado):
     return signo
 
 # ================================================================
-# 3. YOUTUBE
+# 3. YOUTUBE & DEEPSEEK
 # ================================================================
 def obtener_credenciales_youtube():
     yt_token = json.loads(YT_TOKEN_STR)
@@ -204,23 +205,16 @@ def obtener_credenciales_youtube():
 def buscar_ultimo_video_largo():
     try:
         youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
-        request = youtube.search().list(part="snippet", forMine=True, type="video", maxResults=5, order="date")
-        response = request.execute()
+        response = youtube.search().list(part="snippet", forMine=True, type="video", maxResults=5, order="date").execute()
         for item in response.get("items", []):
-            video_id = item["id"]["videoId"]
-            stats = youtube.videos().list(part="contentDetails,snippet", id=video_id).execute()
-            if stats.get("items"):
-                duration = stats["items"][0]["contentDetails"]["duration"]
-                if "M" in duration:
-                    return video_id
+            stats = youtube.videos().list(part="contentDetails", id=item["id"]["videoId"]).execute()
+            if stats.get("items") and "M" in stats["items"][0]["contentDetails"]["duration"]:
+                return item["id"]["videoId"]
         return None
     except Exception as e:
-        print(f"⚠️ Error buscando video largo: {e}")
+        print(f"⚠️ Error buscando video: {e}")
         return None
 
-# ================================================================
-# 4. DEEPSEEK - PROMPT DE VARIACIÓN VIRAL (ANTI-REPETICIÓN)
-# ================================================================
 PROMPT_SHORT_SEO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ Premium). Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
@@ -234,7 +228,6 @@ REGLAS CRÍTICAS DE SEO Y VARIEDAD (NO LAS ROMPAS):
    - Opción C (Místico): "🔮 El cosmos tiene un mensaje urgente para [SIGNO] #[signo_lower] #horoscopo #energia"
    - Opción D (Elemento): "🔥 [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco"
    - Opción E (Destino): "✨ [SIGNO]: El universo conspira a tu favor en esto #[signo_lower] #horoscopo #astrologia"
-   (Usa el emoji que corresponda al elemento: 🔥Fuego, 🌍Tierra, 🌬️Aire, 🌊Agua).
 
 2. DESCRIPCIÓN (ÚNICA): Escribe 2 líneas específicas para este signo, mencionando su elemento ({elemento}) y su energía actual. NO uses plantillas genéricas. Incluye el enlace al video largo.
 
@@ -265,7 +258,7 @@ def llamar_deepseek_short(signo, fecha):
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], 
-               "temperature": 0.85, "response_format": {"type": "json_object"}} # Temperatura un poco más alta para más creatividad
+               "temperature": 0.85, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -291,7 +284,7 @@ def llamar_deepseek_short(signo, fecha):
     raise Exception("Fallo DeepSeek")
 
 # ================================================================
-# 5. IMÁGENES (CON PROMPTS ÉPICOS)
+# 4. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS)
 # ================================================================
 def generar_cf_vertical(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
@@ -299,32 +292,31 @@ def generar_cf_vertical(prompt, ruta):
     clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
     safe_prompt = f"{clean_prompt}, vertical composition, 8k, highly detailed, no text, no watermark"
     payload = {"prompt": safe_prompt, "steps": 4}
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=60)
-        if r.status_code != 200:
-            print(f"   ❌ Cloudflare HTTP {r.status_code}")
-        r.raise_for_status()
-        result = r.json()
-        if "result" not in result or "image" not in result["result"]:
-            raise ValueError("Sin imagen")
-        with open(ruta, "wb") as f:
-            f.write(base64.b64decode(result["result"]["image"]))
-        with Image.open(ruta) as im:
-            im = im.convert("RGB")
-            w, h = im.size
-            target_ratio = 9/16
-            if w/h > target_ratio:
-                new_w = int(h * target_ratio)
-                im = im.crop(((w - new_w) // 2, 0, (w + new_w) // 2, h))
-            else:
-                new_h = int(w / target_ratio)
-                im = im.crop((0, (h - new_h) // 2, w, (h + new_h) // 2))
-            im = im.resize((W_SHORT, H_SHORT), Image.LANCZOS)
-            im.save(ruta, "JPEG", quality=92)
-        return ruta
-    except Exception as e:
-        print(f"   ❌ Cloudflare falló: {e}")
-        raise
+    
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    if r.status_code != 200:
+        print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
+    r.raise_for_status()
+    
+    result = r.json()
+    if "result" not in result or "image" not in result["result"]:
+        raise ValueError("Sin imagen")
+        
+    with open(ruta, "wb") as f:
+        f.write(base64.b64decode(result["result"]["image"]))
+    with Image.open(ruta) as im:
+        im = im.convert("RGB")
+        w, h = im.size
+        target_ratio = 9/16
+        if w/h > target_ratio:
+            new_w = int(h * target_ratio)
+            im = im.crop(((w - new_w) // 2, 0, (w + new_w) // 2, h))
+        else:
+            new_h = int(w / target_ratio)
+            im = im.crop((0, (h - new_h) // 2, w, (h + new_h) // 2))
+        im = im.resize((W_SHORT, H_SHORT), Image.LANCZOS)
+        im.save(ruta, "JPEG", quality=92)
+    return ruta
 
 def generar_pexels_vertical(query, ruta):
     headers = {"Authorization": PEXELS_API_KEY}
@@ -344,42 +336,59 @@ def generar_pexels_vertical(query, ruta):
 
 def obtener_imagen_short(signo, ruta):
     prompt_epico = PROMPTS_IMAGEN_ELEMENTO.get(signo["elemento"], PROMPTS_IMAGEN_ELEMENTO["fuego"])
-    try:
-        print(f"   ☁️ CF Intento 1/1...")
-        return generar_cf_vertical(prompt_epico, ruta)
-    except Exception as e:
-        print(f"   ⚠️ CF falló, usando Pexels...")
     
+    # ✅ 2 INTENTOS EN CLOUDFLARE
+    for i in range(1, 3):
+        try:
+            print(f"   ☁️ CF Intento {i}/2...")
+            return generar_cf_vertical(prompt_epico, ruta)
+        except Exception as e:
+            print(f"   ⚠️ CF intento {i} falló: {str(e)[:100]}")
+            time.sleep(2)
+    
+    print("   ⚠️ CF agotado, usando Pexels como respaldo...")
     try:
         return generar_pexels_vertical(prompt_epico, ruta)
     except Exception as e:
-        print(f"   ❌ Pexels falló: {e}")
+        print(f"   ❌ Pexels también falló: {e}")
         return None
 
 # ================================================================
-# 6. AUDIO (CON REINTENTOS ANTI-403) Y VIDEO
+# 5. AUDIO (ROTACIÓN DE VOCES + FALLBACK gTTS ANTI-403)
 # ================================================================
 async def generar_audio(texto, ruta):
     max_retries = 3
+    voz_elegida = random.choice(VOICES_LIST)
+    print(f"   🎤 Voz seleccionada: {voz_elegida}")
+    
+    # Intento 1: Edge TTS (Mejor calidad)
     for attempt in range(max_retries):
         try:
-            print(f"   🎤 Generando audio (Intento {attempt + 1}/{max_retries})...")
-            communicate = edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%")
+            print(f"   🎤 Generando audio con Edge TTS (Intento {attempt + 1}/{max_retries})...")
+            communicate = edge_tts.Communicate(texto, voz_elegida, rate="-2%")
             await communicate.save(ruta)
             if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
-                print(f"   ✅ Audio generado exitosamente.")
+                print(f"   ✅ Audio Edge TTS generado exitosamente.")
                 return True
-            else:
-                raise Exception("El archivo de audio generado está vacío o es demasiado pequeño.")
         except Exception as e:
             error_msg = str(e)
-            print(f"   ⚠️ Error en Edge TTS (Intento {attempt + 1}): {error_msg[:150]}")
+            print(f"   ⚠️ Error en Edge TTS (Intento {attempt + 1}): {error_msg[:120]}")
             if attempt < max_retries - 1:
-                print(f"   ⏳ Esperando 5 segundos antes de reintentar (posible bloqueo temporal de Microsoft)...")
-                await asyncio.sleep(5) # Pausa asíncrona para evitar rate limit inmediato
-            else:
-                raise Exception(f"Fallo definitivo en Edge TTS tras {max_retries} intentos. Último error: {error_msg}")
-    return False
+                print(f"   ⏳ Esperando 5 segundos antes de reintentar...")
+                await asyncio.sleep(5)
+    
+    # ✅ FALLBACK ROBUSTO: gTTS (No suele ser bloqueado en GitHub Actions)
+    print("   ⚠️ Edge TTS falló tras 3 intentos (posible bloqueo de IP de Microsoft). Activando respaldo gTTS...")
+    try:
+        tts = gTTS(text=texto, lang='es', slow=False)
+        tts.save(ruta)
+        if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
+            print(f"   ✅ Audio gTTS generado exitosamente como respaldo.")
+            return True
+        else:
+            raise Exception("El archivo gTTS generado está vacío.")
+    except Exception as e:
+        raise Exception(f"Fallo definitivo en TTS (Edge y gTTS). Último error: {str(e)}")
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
@@ -397,14 +406,8 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     except:
         font_nombre = font_mantra = ImageFont.load_default()
     
-    texto_nombre = f"{signo['simbolo']} {signo['nombre'].upper()}"
-    draw.text((W_SHORT//2, 400), texto_nombre, font=font_nombre, 
-              fill=(255, 255, 255), anchor="mm", stroke_width=12, stroke_fill=(0, 0, 0))
-    
-    mantra = guion.split('.')[-1].strip()[:80]
-    draw.text((W_SHORT//2, 1600), mantra, font=font_mantra, 
-              fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
-    
+    draw.text((W_SHORT//2, 400), f"{signo['simbolo']} {signo['nombre'].upper()}", font=font_nombre, fill=(255, 255, 255), anchor="mm", stroke_width=12, stroke_fill=(0, 0, 0))
+    draw.text((W_SHORT//2, 1600), guion.split('.')[-1].strip()[:80], font=font_mantra, fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
     img.save("temp_short_frame.jpg")
     
     _VIG = {}
@@ -423,92 +426,70 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
         base = ImageOps.fit(base, sz, Image.LANCZOS)
         arr = np.asarray(base, dtype=np.float32) * vignette_vert(sz, 1.0)
         base = Image.fromarray(arr.astype(np.uint8))
-        
         p = min(max(t / dur, 0), 1)
         cw = sz[0] / (1 + 0.15 * p)
         ch = cw * sz[1] / sz[0]
         mx, my = sz[0] - cw, sz[1] - ch
-        x0 = mx / 2
-        y0 = my / 2 + (my * 0.3 * p)
-        fr = np.asarray(base.resize((W_SHORT, H_SHORT), Image.BILINEAR, box=(x0, y0, x0 + cw, y0 + ch)))
-        
+        fr = np.asarray(base.resize((W_SHORT, H_SHORT), Image.BILINEAR, box=(mx/2, my/2 + my*0.3*p, mx/2+cw, my/2+my*0.3*p+ch)))
         f = 1.0
         if t < 0.5: f = t / 0.5
         if t > dur - 0.5: f = min(f, max(0.0, (dur - t) / 0.5))
-        if f < 1.0: fr = (fr.astype(np.float32) * f).astype(np.uint8)
-        return fr
+        return (fr.astype(np.float32) * f).astype(np.uint8) if f < 1.0 else fr
     
     video = VideoClip(frame, duration=dur)
     audio = AudioFileClip(audio_path)
-    
     musicas = [f for f in os.listdir(".") if f.lower().endswith(".mp3") and not f.startswith("temp_")]
-    if musicas:
-        musica = random.choice(musicas)
-        try:
-            bg = AudioFileClip(musica)
-            if bg.duration < dur:
-                bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
-            audio_final = CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)])
-            print(f"🎵 Música: {musica}")
-        except:
-            audio_final = audio
-    else:
-        audio_final = audio
     
-    video = video.set_audio(audio_final)
+    if musicas:
+        bg = AudioFileClip(random.choice(musicas))
+        if bg.duration < dur: bg = concatenate_audioclips([bg] * (int(dur / bg.duration) + 1))
+        video = video.set_audio(CompositeAudioClip([audio, bg.subclip(0, dur).volumex(0.08).audio_fadein(2).audio_fadeout(2)]))
+    else:
+        video = video.set_audio(audio)
+    
     print("🎬 Renderizando...")
-    video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", 
-                         threads=4, preset="ultrafast", logger=None)
+    video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
     return salida
 
 # ================================================================
-# 7. SUBIDA
+# 6. SUBIDA
 # ================================================================
 def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
-    
     signo_norm = normalizar_ascii(signo["nombre"])
     desc = f"{datos['descripcion']}\n\n"
     if video_largo_id:
         desc += f"🎥 VIDEOS DIARIOS, SEMANALES Y MENSUALES:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
-    desc += f"🔔 Suscríbete para más mensajes del universo: {CANAL_LINK}\n\n"
-    desc += f"Este horóscopo para {signo['nombre']} revela las energías de hoy. No olvides que el mensaje del universo y la astrología pueden guiarte. #horoscopo #{signo_norm} #astrologia #zodiaco #shorts"
-    
-    tags = construir_tags_shorts_premium(signo)
+    desc += f"🔔 Suscríbete: {CANAL_LINK}\n\n"
+    desc += f"Este horóscopo para {signo['nombre']} revela las energías de hoy. #horoscopo #{signo_norm} #astrologia #zodiaco #shorts"
     
     body = {
-        "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": tags, 
+        "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": construir_tags_shorts_premium(signo), 
                     "categoryId": "22", "defaultLanguage": "es", "defaultAudioLanguage": "es"},
-        "status": {"privacyStatus": "private", "publishAt": hora_utc, 
-                   "selfDeclaredMadeForKids": False, "containsSyntheticMedia": True}
+        "status": {"privacyStatus": "private", "publishAt": hora_utc, "selfDeclaredMadeForKids": False, "containsSyntheticMedia": True}
     }
-    media = MediaFileUpload(ruta_video, chunksize=4*1024*1024, resumable=True)
-    req = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+    req = youtube.videos().insert(part="snippet,status", body=body, media_body=MediaFileUpload(ruta_video, chunksize=4*1024*1024, resumable=True))
     resp, reintentos = None, 0
     while resp is None:
         try:
             st, resp = req.next_chunk()
             if st: print(f"   ⬆️ {int(st.progress() * 100)}%")
-        except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
+        except Exception as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"⚠️ Reintentando ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
-    video_id = resp["id"]
-    print(f"✅ Short subido. ID: {video_id}")
+            
+    print(f"✅ Short subido. ID: {resp['id']}")
     if datos.get("comentario_fijado"):
         try:
-            comentario = datos["comentario_fijado"] + (f"\n\n🎥 Mira el video completo en el canal: https://www.youtube.com/watch?v={video_largo_id}" if video_largo_id else "")
-            youtube.commentThreads().insert(part="snippet", body={
-                "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": comentario}}}
-            }).execute()
-        except HttpError as e:
-            print(f"⚠️ Error comentario: {e}")
-    return video_id
+            comentario = datos["comentario_fijado"] + (f"\n\n🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}" if video_largo_id else "")
+            youtube.commentThreads().insert(part="snippet", body={"snippet": {"videoId": resp['id'], "topLevelComment": {"snippet": {"textOriginal": comentario}}}}).execute()
+        except: pass
+    return resp['id']
 
 # ================================================================
-# 8. MAIN
+# 7. MAIN
 # ================================================================
 def main():
     try:
@@ -521,51 +502,32 @@ def main():
         print(f"📊 Progreso: {len(estado['publicados_hoy'])}/12")
         
         hora_actual = ahora.hour
-        if 4 <= hora_actual < 6:
-            hora_base = ahora.replace(hour=5, minute=0, second=0, microsecond=0)
-            minutos_aleatorios = random.randint(5, 50)
-        elif 6 <= hora_actual < 8:
-            hora_base = ahora.replace(hour=7, minute=0, second=0, microsecond=0)
-            minutos_aleatorios = random.randint(10, 45)
-        elif 8 <= hora_actual < 10:
-            hora_base = ahora.replace(hour=9, minute=0, second=0, microsecond=0)
-            minutos_aleatorios = random.randint(5, 40)
-        else:
-            hora_base = ahora
-            minutos_aleatorios = random.randint(15, 45)
+        if 4 <= hora_actual < 6: hora_base, min_rand = ahora.replace(hour=5, minute=0, second=0, microsecond=0), random.randint(5, 50)
+        elif 6 <= hora_actual < 8: hora_base, min_rand = ahora.replace(hour=7, minute=0, second=0, microsecond=0), random.randint(10, 45)
+        elif 8 <= hora_actual < 10: hora_base, min_rand = ahora.replace(hour=9, minute=0, second=0, microsecond=0), random.randint(5, 40)
+        else: hora_base, min_rand = ahora, random.randint(15, 45)
         
-        hora_final = hora_base + timedelta(minutes=minutos_aleatorios)
+        hora_final = hora_base + timedelta(minutes=min_rand)
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
         print(f"📅 Programado: {hora_final:%H:%M}")
         
-        print("🔍 Buscando video largo...")
         video_largo_id = buscar_ultimo_video_largo()
+        datos = llamar_deepseek_short(signo, datetime.now(TZ).strftime("%d de %B de %Y"))
+        print(f"   📝 Título SEO: {datos.get('titulo')}")
         
-        fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
-        print(f"🧠 Generando guion SEO Premium con VARIEDAD...")
-        datos = llamar_deepseek_short(signo, fecha_hoy)
-        print(f"   📝 Título SEO: {datos.get('titulo', 'N/A')}")
-        
-        print("🎨 Generando imagen ÉPICA...")
         obtener_imagen_short(signo, "temp_short_img.jpg")
         asyncio.run(generar_audio(datos["guion"], "temp_short_audio.mp3"))
-        
-        print("🎬 Renderizando...")
         renderizar_short(signo, datos["guion"], "temp_short_img.jpg", "temp_short_audio.mp3", "short_final.mp4")
-        
-        print("📤 Subiendo con SEO Máximo...")
         subir_short_youtube("short_final.mp4", datos, signo, video_largo_id, hora_utc)
         
         guardar_estado(estado)
         hacer_commit_estado()
-        
         print(f"✨ ¡COMPLETADO! {signo['nombre']} para {hora_final:%H:%M}")
         
         for f in os.listdir():
             if f.startswith("temp_") or f == "short_final.mp4":
                 try: os.remove(f)
                 except: pass
-                
     except Exception as e:
         print(f"❌ ERROR FATAL: {e}")
         traceback.print_exc()
