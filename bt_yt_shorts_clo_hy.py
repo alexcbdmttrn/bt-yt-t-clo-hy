@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
-Fix: Rotación de 5 voces femeninas + Fallback a gTTS si Edge TTS es bloqueado (Error 403).
+Fix: Límite estricto de 3 Shorts diarios, rotación de 5 voces femeninas + Fallback a gTTS.
      2 intentos Cloudflare, SEO VidIQ Premium, Imágenes épicas, Cola secuencial sin repeticiones.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
@@ -32,6 +32,9 @@ REPO_NAME = os.getenv("GITHUB_REPOSITORY", "")
 
 CANAL_LINK = "https://www.youtube.com/@tucielhoy"
 
+# ✅ LÍMITE MÁXIMO DE SHORTS POR DÍA
+MAX_SHORTS_DIARIOS = 3
+
 # ✅ LISTA DE 5 VOCES FEMENINAS PARA ROTAR Y EVITAR MONOTONÍA
 VOICES_LIST = [
     "es-MX-DaliaNeural",
@@ -46,7 +49,7 @@ W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
-    {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
+    {"nombre": "Tauro", "simbolo": "", "elemento": "tierra"},
     {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
     {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
@@ -56,7 +59,7 @@ SIGNOS_COLA = [
     {"nombre": "Sagitario", "simbolo": "♐", "elemento": "fuego"},
     {"nombre": "Capricornio", "simbolo": "♑", "elemento": "tierra"},
     {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
-    {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
+    {"nombre": "Piscis", "simbolo": "", "elemento": "agua"}
 ]
 
 PROMPTS_IMAGEN_ELEMENTO = {
@@ -119,7 +122,7 @@ if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TO
     sys.exit(1)
 
 # ================================================================
-# 2. ESTADO DEL BOT (SECUENCIA CONTINUA)
+# 2. ESTADO DEL BOT (SECUENCIA CONTINUA + LÍMITE DE 3 SHORTS)
 # ================================================================
 def cargar_estado():
     try:
@@ -158,10 +161,10 @@ def hacer_commit_estado():
             print("✅ Estado commiteado.")
             return True
         else:
-            print(f"⚠️ No se pudo hacer push: {result.stderr[:100]}")
+            print(f"️ No se pudo hacer push: {result.stderr[:100]}")
             return False
     except Exception as e:
-        print(f"⚠️ Error commit: {e}")
+        print(f"️ Error commit: {e}")
         return False
 
 def elegir_siguiente_signo(estado):
@@ -226,7 +229,7 @@ REGLAS CRÍTICAS DE SEO Y VARIEDAD (NO LAS ROMPAS):
    - Opción A (Urgencia): "⚠️ [SIGNO]: No ignores esta señal del Universo hoy #[signo_lower] #horoscopo #astrologia"
    - Opción B (Beneficio): "💰 [SIGNO]: Revelación inesperada de dinero y amor #[signo_lower] #zodiaco #astrologia"
    - Opción C (Místico): "🔮 El cosmos tiene un mensaje urgente para [SIGNO] #[signo_lower] #horoscopo #energia"
-   - Opción D (Elemento): "🔥 [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco"
+   - Opción D (Elemento): " [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco"
    - Opción E (Destino): "✨ [SIGNO]: El universo conspira a tu favor en esto #[signo_lower] #horoscopo #astrologia"
 
 2. DESCRIPCIÓN (ÚNICA): Escribe 2 líneas específicas para este signo, mencionando su elemento ({elemento}) y su energía actual. NO uses plantillas genéricas. Incluye el enlace al video largo.
@@ -276,7 +279,6 @@ def llamar_deepseek_short(signo, fecha):
             
             if "#" not in datos.get("titulo", ""):
                 datos["titulo"] = f"🔮 {signo['nombre']}: Mensaje del Universo #{signo_lower} #horoscopo #astrologia"
-            
             return datos
         except Exception as e:
             print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
@@ -489,7 +491,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     return resp['id']
 
 # ================================================================
-# 7. MAIN
+# 7. MAIN (CON LÍMITE DE 3 SHORTS DIARIOS)
 # ================================================================
 def main():
     try:
@@ -497,9 +499,17 @@ def main():
         print(f"🤖 Bot ejecutándose...")
         
         estado = cargar_estado()
+        
+        # ✅ VERIFICAR LÍMITE DE 3 SHORTS DIARIOS
+        if len(estado.get("publicados_hoy", [])) >= MAX_SHORTS_DIARIOS:
+            print(f"️ LÍMITE DIARIO ALCANZADO: Ya se publicaron {MAX_SHORTS_DIARIOS} Shorts hoy.")
+            print(f"📋 Signos publicados hoy: {estado['publicados_hoy']}")
+            print(f"✨ El bot se detiene aquí para no exceder el límite.")
+            return
+        
         signo = elegir_siguiente_signo(estado)
-        print(f"🎯 Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
-        print(f"📊 Progreso: {len(estado['publicados_hoy'])}/12")
+        print(f" Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
+        print(f" Progreso: {len(estado['publicados_hoy'])}/{MAX_SHORTS_DIARIOS} Shorts hoy")
         
         hora_actual = ahora.hour
         if 4 <= hora_actual < 6: hora_base, min_rand = ahora.replace(hour=5, minute=0, second=0, microsecond=0), random.randint(5, 50)
