@@ -3,6 +3,7 @@
 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN VARIACIÓN VIRAL
 Fix: Títulos y descripciones 100% únicos y variados (anti-repetición), SEO VidIQ Premium, 
      Tags estratégicos (Generales + Específicos + Long-Tail), Imágenes épicas por elemento.
+     FIX CRÍTICO: Sistema de reintentos robusto para Edge TTS (soluciona error 403 de Microsoft).
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -356,11 +357,29 @@ def obtener_imagen_short(signo, ruta):
         return None
 
 # ================================================================
-# 6. AUDIO Y VIDEO
+# 6. AUDIO (CON REINTENTOS ANTI-403) Y VIDEO
 # ================================================================
 async def generar_audio(texto, ruta):
-    await edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%").save(ruta)
-    return os.path.getsize(ruta) > 500
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"   🎤 Generando audio (Intento {attempt + 1}/{max_retries})...")
+            communicate = edge_tts.Communicate(texto, VOZ_CANAL, rate="-2%")
+            await communicate.save(ruta)
+            if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
+                print(f"   ✅ Audio generado exitosamente.")
+                return True
+            else:
+                raise Exception("El archivo de audio generado está vacío o es demasiado pequeño.")
+        except Exception as e:
+            error_msg = str(e)
+            print(f"   ⚠️ Error en Edge TTS (Intento {attempt + 1}): {error_msg[:150]}")
+            if attempt < max_retries - 1:
+                print(f"   ⏳ Esperando 5 segundos antes de reintentar (posible bloqueo temporal de Microsoft)...")
+                await asyncio.sleep(5) # Pausa asíncrona para evitar rate limit inmediato
+            else:
+                raise Exception(f"Fallo definitivo en Edge TTS tras {max_retries} intentos. Último error: {error_msg}")
+    return False
 
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
