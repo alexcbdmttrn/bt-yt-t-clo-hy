@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN SEO PREMIUM LARGO
-Fix: Títulos de alto CTR (estilo VidIQ), descripciones SEO enriquecidas, 
-     tags optimizados, 1 intento Cloudflare → Pexels inmediato.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
+Fix: SEO Premium VidIQ, 2 intentos Cloudflare, Fallback robusto a gTTS si Edge TTS es bloqueado (Error 403).
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -10,6 +9,7 @@ from zoneinfo import ZoneInfo
 import requests, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
 import edge_tts
+from gtts import gTTS  # ✅ NUEVO: Respaldo robusto para GitHub Actions
 from moviepy.editor import AudioFileClip, CompositeAudioClip, VideoClip, concatenate_audioclips
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -213,7 +213,7 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     raise Exception("Fallo DeepSeek tras 3 intentos")
 
 # ================================================================
-# 4. IMÁGENES (1 INTENTO CLOUDFLARE → PEXELS INMEDIATO)
+# 4. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS INMEDIATO)
 # ================================================================
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
@@ -222,23 +222,22 @@ def generar_cf(prompt, ruta):
     clean_prompt = ' '.join(clean_prompt.split())
     safe_prompt = f"{clean_prompt}, mystical, vibrant colors, 8k resolution, highly detailed, no text, no watermark"
     payload = {"prompt": safe_prompt, "steps": 4}
-    try:
-        r = requests.post(url, headers=headers, json=payload, timeout=60)
-        if r.status_code != 200:
-            print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
-        r.raise_for_status()
-        result = r.json()
-        if "result" not in result or "image" not in result["result"]:
-            raise ValueError(f"Respuesta sin imagen: {str(result)[:200]}")
-        with open(ruta, "wb") as f:
-            f.write(base64.b64decode(result["result"]["image"]))
-        with Image.open(ruta) as im:
-            im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
-            im.save(ruta, "JPEG", quality=92)
-        return ruta
-    except Exception as e:
-        print(f"   ❌ Excepción en Cloudflare: {e}")
-        raise
+    
+    r = requests.post(url, headers=headers, json=payload, timeout=60)
+    if r.status_code != 200:
+        print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
+    r.raise_for_status()
+    
+    result = r.json()
+    if "result" not in result or "image" not in result["result"]:
+        raise ValueError(f"Respuesta sin imagen: {str(result)[:200]}")
+        
+    with open(ruta, "wb") as f:
+        f.write(base64.b64decode(result["result"]["image"]))
+    with Image.open(ruta) as im:
+        im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
+        im.save(ruta, "JPEG", quality=92)
+    return ruta
 
 def generar_pexels(query, ruta):
     headers = {"Authorization": PEXELS_API_KEY}
@@ -255,11 +254,16 @@ def generar_pexels(query, ruta):
     return ruta
 
 def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
-    try:
-        print(f"   ☁️ CF Intento 1/1...")
-        return generar_cf(prompt, ruta)
-    except Exception as e:
-        print(f"   ⚠️ CF falló, usando Pexels inmediatamente...")
+    # ✅ 2 INTENTOS EN CLOUDFLARE ANTES DE PEXELS
+    for i in range(1, 3):
+        try:
+            print(f"   ☁️ CF Intento {i}/2...")
+            return generar_cf(prompt, ruta)
+        except Exception as e:
+            print(f"   ⚠️ CF intento {i} falló: {str(e)[:100]}")
+            time.sleep(2)
+    
+    print("   ⚠️ CF agotado, usando Pexels como respaldo...")
     try:
         query = prompt + " bright vibrant mystical" if es_miniatura else prompt + " vivid cinematic"
         return generar_pexels(query, ruta)
@@ -268,11 +272,37 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
         return None
 
 # ================================================================
-# 5. AUDIO Y MINIATURAS BRILLANTES 8K
+# 5. AUDIO (CON REINTENTOS ANTI-403 + FALLBACK gTTS) Y MINIATURAS
 # ================================================================
 async def generar_audio(texto, ruta):
-    await edge_tts.Communicate(texto, VOZ_CANAL, rate="-4%").save(ruta)
-    return os.path.getsize(ruta) > 500
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            print(f"   🎤 Generando audio con Edge TTS (Intento {attempt + 1}/{max_retries})...")
+            communicate = edge_tts.Communicate(texto, VOZ_CANAL, rate="-4%")
+            await communicate.save(ruta)
+            if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
+                print(f"   ✅ Audio Edge TTS generado exitosamente.")
+                return True
+        except Exception as e:
+            error_msg = str(e)
+            print(f"   ⚠️ Error en Edge TTS (Intento {attempt + 1}): {error_msg[:150]}")
+            if attempt < max_retries - 1:
+                print(f"   ⏳ Esperando 5 segundos antes de reintentar (posible bloqueo temporal de Microsoft)...")
+                await asyncio.sleep(5)
+    
+    # ✅ FALLBACK ROBUSTO: gTTS (No suele ser bloqueado en GitHub Actions)
+    print("   ⚠️ Edge TTS falló tras 3 intentos. Activando respaldo gTTS (Google)...")
+    try:
+        tts = gTTS(text=texto, lang='es', slow=False)
+        tts.save(ruta)
+        if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
+            print(f"   ✅ Audio gTTS generado exitosamente como respaldo.")
+            return True
+        else:
+            raise Exception("El archivo gTTS generado está vacío.")
+    except Exception as e:
+        raise Exception(f"Fallo definitivo en TTS (Edge y gTTS). Último error: {str(e)}")
 
 def render_texto_gradiente_8k(texto, font_path, size):
     font = ImageFont.truetype(font_path, size)
