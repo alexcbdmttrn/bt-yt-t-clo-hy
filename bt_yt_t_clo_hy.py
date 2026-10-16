@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
-Fix: SEO Premium VidIQ, 2 intentos Cloudflare, Fallback robusto a gTTS si Edge TTS es bloqueado (Error 403).
+Fix: Títulos 100% únicos y dinámicos (anti-repetición), SEO Premium VidIQ, 
+     2 intentos Cloudflare, Fallback robusto a gTTS si Edge TTS es bloqueado (Error 403).
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -137,34 +138,40 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL
+# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (ANTI-REPETICIÓN)
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ). Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
-REGLAS CRÍTICAS DE SEO Y RETENCIÓN:
-1. TÍTULO (Máx 70 chars, Alto CTR): Elige UNA de estas fórmulas para generar curiosidad y urgencia:
-   - Opción A: "HORÓSCOPO HOY: El Universo tiene un mensaje URGENTE para ti 🔮"
-   - Opción B: "No ignores esta SEÑAL hoy: Horóscopo Diario para los 12 Signos ✨"
-   - Opción C: "HORÓSCOPO DEL DÍA: Revelación inesperada en Amor y Dinero 💫"
+REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN):
+1. TÍTULO (Máx 70 chars, Alto CTR y 100% ÚNICO): Genera un título completamente nuevo y diferente a los días anteriores. Elige UNA de estas estructuras dinámicas:
+   - Opción A: "🔮 [SIGNO]: La [PLANETA/LUNA] revela tu [destino/secreto/verdad] hoy"
+   - Opción B: "⚠️ ALERTA ZODIACAL: [HECHOS ASTROLÓGICOS] cambian tu [amor/dinero] hoy"
+   - Opción C: "✨ [SIGNO]: El cosmos te prepara una [sorpresa/recompensa] inesperada hoy"
+   - Opción D: "🌙 [FASE LUNAR]: Tu energía [fuego/tierra/aire/agua] brilla con fuerza en [tema]"
+   - Opción E: "💫 VERDAD OCULTA: Lo que nadie te dice sobre tu [amor/dinero] hoy, [SIGNO]"
    (Añade siempre | [Tránsito lunar actual] al final, ej: "| Luna en Cáncer")
+   ¡PROHIBIDO repetir exactamente "El Universo tiene un mensaje URGENTE para ti" si ya se usó recientemente!
+
 2. DESCRIPCIÓN (SEO Enriquecido): 3 párrafos. 
    - P1: Gancho emocional mencionando "horóscopo diario", "mensaje del universo" y la energía de hoy.
    - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) usando palabras clave naturales.
    - P3: Llamado a la acción fuerte para suscribirse y comentar su signo.
+
 3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..."
+
 4. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso, colores vibrantes, high key lighting) y 2-3 palabras MAYÚSCULAS.
 
 Responde SOLO JSON:
 {{
-  "titulo": "HORÓSCOPO HOY: El Universo tiene un mensaje URGENTE para ti 🔮 | Luna en Cáncer",
+  "titulo": "🔮 ARIES: La Luna revela tu destino hoy | Luna en Cáncer",
   "descripcion": "...",
   "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral"],
   "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios para decretar.",
   "miniatura_prompt": "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k, no text",
-  "miniatura_texto": "MENSAJE URGENTE",
+  "miniatura_texto": "VERDAD OCULTA",
   "miniatura_banner": "DEL UNIVERSO",
   "signos": [
     {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "bright red sunrise fire sparks"}},
@@ -183,8 +190,8 @@ Responde SOLO JSON:
 }}
 """
 
-PROMPT_SEMANAL = PROMPT_DIARIO.replace("DIARIO", "SEMANAL").replace("90-110 palabras", "150-180 palabras").replace("HORÓSCOPO HOY", "HORÓSCOPO SEMANAL")
-PROMPT_MENSUAL = PROMPT_DIARIO.replace("DIARIO", "MENSUAL").replace("90-110 palabras", "250-300 palabras").replace("HORÓSCOPO HOY", "HORÓSCOPO MENSUAL")
+PROMPT_SEMANAL = PROMPT_DIARIO.replace("DIARIO", "SEMANAL").replace("90-110 palabras", "150-180 palabras").replace("horóscopo diario", "horóscopo semanal")
+PROMPT_MENSUAL = PROMPT_DIARIO.replace("DIARIO", "MENSUAL").replace("90-110 palabras", "250-300 palabras").replace("horóscopo diario", "horóscopo mensual")
 
 def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     if modo == "weekly": prompt = PROMPT_SEMANAL
@@ -192,7 +199,7 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     else: prompt = PROMPT_DIARIO
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.8, "response_format": {"type": "json_object"}}
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.85, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -567,7 +574,9 @@ def main():
         print(f"🧠 1. Generando contenido SEO Premium con DeepSeek (modo {tipo})...")
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
         
+        # ✅ VERIFICACIÓN ANTI-REPETICIÓN DE TÍTULOS
         if titulo_ya_publicado(datos["titulo"]):
+            print("⚠️ Título repetido detectado. Solicitando variación...")
             datos["titulo"] = f"{datos['titulo']} (Edición Especial)"
             
         print("🎨 2. Generando activos (Imágenes y Audio)...")
@@ -579,7 +588,7 @@ def main():
             
         print("🖼️ 3. Creando miniatura 8K Brillante...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
-        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "MENSAJE URGENTE"), datos.get("miniatura_banner", "DEL UNIVERSO"), "miniatura.jpg")
+        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "VERDAD OCULTA"), datos.get("miniatura_banner", "DEL UNIVERSO"), "miniatura.jpg")
         
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
