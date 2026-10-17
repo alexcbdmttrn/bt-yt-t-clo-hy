@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
-Fix: Títulos 100% únicos y dinámicos (anti-repetición), SEO Premium VidIQ, 
-     2 intentos Cloudflare, Fallback robusto a gTTS si Edge TTS es bloqueado (Error 403).
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10
+Fix: Títulos 100% únicos (Inyección de Variables), Imágenes de Arte Digital Premium, 
+     SEO de Intención de Búsqueda, 2 intentos Cloudflare, Fallback robusto a gTTS.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 import requests, numpy as np
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance, ImageOps
 import edge_tts
-from gtts import gTTS  # ✅ NUEVO: Respaldo robusto para GitHub Actions
+from gtts import gTTS  # ✅ Respaldo robusto para GitHub Actions
 from moviepy.editor import AudioFileClip, CompositeAudioClip, VideoClip, concatenate_audioclips
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
@@ -34,7 +34,7 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ PARA VIDEOS LARGOS)
+# 🏷️ MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ x10)
 # ================================================================
 TAGS_GENERALES_SIEMPRE = [
     "horoscopo", "horoscopo diario", "astrologia", "zodiaco", "tu cielo hoy",
@@ -99,7 +99,7 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - SEO PREMIUM VIDEOS LARGOS")
+print("🔮 BT_YT_T_CLO_HY MASTER - VERSIÓN ÉLITE x10 (ANTI-SPAM)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -138,54 +138,54 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (ANTI-REPETICIÓN)
+# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (ANTI-REPETICIÓN EXTREMA)
 # ================================================================
 PROMPT_DIARIO = """
-Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ). Tono: femenino, cálido, místico, URGENTE.
+Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral (Nivel VidIQ x10). Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
-REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN):
-1. TÍTULO (Máx 70 chars, Alto CTR y 100% ÚNICO): Genera un título completamente nuevo y diferente a los días anteriores. Elige UNA de estas estructuras dinámicas:
-   - Opción A: "🔮 [SIGNO]: La [PLANETA/LUNA] revela tu [destino/secreto/verdad] hoy"
-   - Opción B: "⚠️ ALERTA ZODIACAL: [HECHOS ASTROLÓGICOS] cambian tu [amor/dinero] hoy"
-   - Opción C: "✨ [SIGNO]: El cosmos te prepara una [sorpresa/recompensa] inesperada hoy"
-   - Opción D: "🌙 [FASE LUNAR]: Tu energía [fuego/tierra/aire/agua] brilla con fuerza en [tema]"
-   - Opción E: "💫 VERDAD OCULTA: Lo que nadie te dice sobre tu [amor/dinero] hoy, [SIGNO]"
-   (Añade siempre | [Tránsito lunar actual] al final, ej: "| Luna en Cáncer")
-   ¡PROHIBIDO repetir exactamente "El Universo tiene un mensaje URGENTE para ti" si ya se usó recientemente!
+REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN EXTREMA):
+1. TÍTULO (Máx 70 chars, Alto CTR y 100% ÚNICO): DEBES combinar 1 Estructura + 1 Palabra de Poder + 1 Tema. PROHIBIDO repetir la misma combinación dos días seguidos.
+   - Estructuras: "🔮 [SIGNO]: La {Palabra de Poder} sobre tu {Tema}", "⚠️ ALERTA: Lo que nadie te dice de tu {Tema} hoy, [SIGNO]", "✨ [SIGNO]: El cosmos te prepara un {Tema} inesperado", "💫 VERDAD OCULTA: El mensaje que [SIGNO] necesita HOY"
+   - Palabras de Poder: Revelación, Alerta, Secreto, Impactante, Verdad, Destino, Prohibido, Urgente, Sorpresa.
+   - Temas: Amor, Dinero, Karma, Ex, Salud, Suerte, Destino, Trabajo.
+   - SIEMPRE termina con: | [Tránsito lunar actual, ej: Luna en Cáncer]
 
-2. DESCRIPCIÓN (SEO Enriquecido): 3 párrafos. 
-   - P1: Gancho emocional mencionando "horóscopo diario", "mensaje del universo" y la energía de hoy.
-   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) usando palabras clave naturales.
-   - P3: Llamado a la acción fuerte para suscribirse y comentar su signo.
+2. DESCRIPCIÓN (SEO Enriquecido x10): 3 párrafos. 
+   - P1: Gancho emocional con palabras clave de cola larga (ej: "¿Qué le espera hoy a [SIGNO] en el amor y el dinero?").
+   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) usando lenguaje natural y persuasivo.
+   - P3: Llamado a la acción fuerte para suscribirse y comentar su signo para decretar.
 
-3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..."
+3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..." y ser único, sin frases cliché repetitivas.
 
-4. Miniatura: Prompt en inglés (fondo BRILLANTE, luminoso, colores vibrantes, high key lighting) y 2-3 palabras MAYÚSCULAS.
+4. IMÁGENES Y MINIATURA (ARTE DIGITAL PREMIUM): 
+   - visual_prompt: Debe ser una descripción de "Arte Digital Premium" (ej: "masterpiece, intense cosmic flames, volumetric lighting, vibrant color grading, hyper-detailed, 8k, trending on ArtStation, no text").
+   - miniatura_prompt: Similar, enfocado en alta calidad visual y colores vibrantes.
+   - miniatura_texto: 2-3 palabras MAYÚSCULAS de alto impacto (ej: "REVELACIÓN IMPACTANTE").
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 ARIES: La Luna revela tu destino hoy | Luna en Cáncer",
+  "titulo": "🔮 ARIES: La Revelación Impactante sobre tu Amor hoy | Luna en Cáncer",
   "descripcion": "...",
-  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral"],
+  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral", "que le espera a aries hoy"],
   "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios para decretar.",
-  "miniatura_prompt": "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k, no text",
+  "miniatura_prompt": "masterpiece, vibrant cosmic energy, volumetric lighting, hyper-detailed, 8k resolution, trending on ArtStation, no text, no watermark",
   "miniatura_texto": "VERDAD OCULTA",
   "miniatura_banner": "DEL UNIVERSO",
   "signos": [
-    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "bright red sunrise fire sparks"}},
-    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "bright green forest sunlight"}},
-    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "bright wind blowing trees"}},
-    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "bright ocean waves calm"}},
-    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "bright golden sunset"}},
-    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "bright morning dew leaves"}},
-    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "Libra, el equilibrio...", "visual_prompt": "bright pink sunset clouds"}},
-    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "Escorpio, tu intensidad...", "visual_prompt": "bright deep ocean mystical"}},
-    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "bright mountain peak sunrise"}},
-    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Construcción Sólida", "guion": "Capricornio, tu disciplina...", "visual_prompt": "bright stone architecture"}},
-    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Innovadora", "guion": "Acuario, tu originalidad...", "visual_prompt": "bright aurora borealis"}},
-    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Sueño Profético", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "bright underwater coral reef"}}
+    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "masterpiece, intense cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, hyper-detailed, 8k resolution, cinematic composition, no text"}},
+    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, hyper-detailed, 8k, cinematic, no text"}},
+    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky, hyper-detailed, 8k, cinematic, no text"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, 8k, no text"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "masterpiece, intense cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, hyper-detailed, 8k, no text"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, hyper-detailed, 8k, no text"}},
+    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "Libra, el equilibrio...", "visual_prompt": "masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky, hyper-detailed, 8k, no text"}},
+    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "Escorpio, tu intensidad...", "visual_prompt": "masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, 8k, no text"}},
+    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "masterpiece, intense cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, hyper-detailed, 8k, no text"}},
+    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Construcción Sólida", "guion": "Capricornio, tu disciplina...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, hyper-detailed, 8k, no text"}},
+    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Innovadora", "guion": "Acuario, tu originalidad...", "visual_prompt": "masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky, hyper-detailed, 8k, no text"}},
+    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Sueño Profético", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, 8k, no text"}}
   ]
 }}
 """
@@ -199,7 +199,8 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
     else: prompt = PROMPT_DIARIO
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.85, "response_format": {"type": "json_object"}}
+    # ✅ TEMPERATURA 0.95 PARA MÁXIMA CREATIVIDAD Y VARIACIÓN EN TÍTULOS
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.95, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -225,10 +226,9 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
+    clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:150] # Aumentado para permitir más detalle del prompt premium
     clean_prompt = ' '.join(clean_prompt.split())
-    safe_prompt = f"{clean_prompt}, mystical, vibrant colors, 8k resolution, highly detailed, no text, no watermark"
-    payload = {"prompt": safe_prompt, "steps": 4}
+    payload = {"prompt": clean_prompt, "steps": 4}
     
     r = requests.post(url, headers=headers, json=payload, timeout=60)
     if r.status_code != 200:
@@ -243,7 +243,7 @@ def generar_cf(prompt, ruta):
         f.write(base64.b64decode(result["result"]["image"]))
     with Image.open(ruta) as im:
         im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
-        im.save(ruta, "JPEG", quality=92)
+        im.save(ruta, "JPEG", quality=95) # ✅ Calidad máxima
     return ruta
 
 def generar_pexels(query, ruta):
@@ -257,14 +257,14 @@ def generar_pexels(query, ruta):
             for chunk in r_img.iter_content(8192): f.write(chunk)
     with Image.open(ruta) as im:
         im = ImageOps.fit(im.convert("RGB"), (W, H), Image.LANCZOS)
-        im.save(ruta, "JPEG", quality=92)
+        im.save(ruta, "JPEG", quality=95)
     return ruta
 
 def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
     # ✅ 2 INTENTOS EN CLOUDFLARE ANTES DE PEXELS
     for i in range(1, 3):
         try:
-            print(f"   ☁️ CF Intento {i}/2...")
+            print(f"   ☁️ CF Intento {i}/2 (Arte Premium)...")
             return generar_cf(prompt, ruta)
         except Exception as e:
             print(f"   ⚠️ CF intento {i} falló: {str(e)[:100]}")
@@ -496,7 +496,7 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         caps.append(f"{mins:02d}:{secs:02d} {s['simbolo']} {s['nombre']}: {s['titulo_cap']}")
         tiempo_acumulado += duracion_real + 0.5
         
-    # ✅ DESCRIPCIÓN SEO ENRIQUECIDA
+    # ✅ DESCRIPCIÓN SEO ENRIQUECIDA x10
     desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete para más mensajes del universo: {CANAL_LINK}"
     desc += HASHTAGS_YOUTUBE
     
@@ -582,12 +582,12 @@ def main():
         print("🎨 2. Generando activos (Imágenes y Audio)...")
         for i, signo in enumerate(datos["signos"]):
             print(f"   Procesando {signo['nombre']}...")
-            obtener_imagen_segura(signo.get("visual_prompt", "bright mystical galaxy"), f"temp_signo_{i}.jpg")
+            obtener_imagen_segura(signo.get("visual_prompt", "masterpiece, mystical galaxy, volumetric lighting, 8k"), f"temp_signo_{i}.jpg")
             guion_con_nombre = f"{signo['nombre']}. {signo['guion']}"
             asyncio.run(generar_audio(guion_con_nombre, f"temp_audio_{i}.mp3"))
             
         print("🖼️ 3. Creando miniatura 8K Brillante...")
-        obtener_imagen_segura(datos.get("miniatura_prompt", "bright luminous mystical zodiac, vibrant glowing colors, high key lighting, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
+        obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, vibrant cosmic energy, volumetric lighting, hyper-detailed, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
         crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "VERDAD OCULTA"), datos.get("miniatura_banner", "DEL UNIVERSO"), "miniatura.jpg")
         
         print("🎬 4. Renderizando video...")
