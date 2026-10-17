@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
-Fix: Límite estricto de 3 Shorts diarios, rotación de 5 voces femeninas + Fallback a gTTS.
-     2 intentos Cloudflare, SEO VidIQ Premium, Imágenes épicas, Cola secuencial sin repeticiones.
+Fix: Títulos 100% únicos y dinámicos (anti-repetición extrema), Límite de 3 Shorts diarios, 
+     rotación de 5 voces femeninas + Fallback a gTTS, 2 intentos Cloudflare, SEO VidIQ Premium.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -49,7 +49,7 @@ W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
-    {"nombre": "Tauro", "simbolo": "", "elemento": "tierra"},
+    {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
     {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
     {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
@@ -59,7 +59,7 @@ SIGNOS_COLA = [
     {"nombre": "Sagitario", "simbolo": "♐", "elemento": "fuego"},
     {"nombre": "Capricornio", "simbolo": "♑", "elemento": "tierra"},
     {"nombre": "Acuario", "simbolo": "♒", "elemento": "aire"},
-    {"nombre": "Piscis", "simbolo": "", "elemento": "agua"}
+    {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
 PROMPTS_IMAGEN_ELEMENTO = {
@@ -161,10 +161,10 @@ def hacer_commit_estado():
             print("✅ Estado commiteado.")
             return True
         else:
-            print(f"️ No se pudo hacer push: {result.stderr[:100]}")
+            print(f"⚠️ No se pudo hacer push: {result.stderr[:100]}")
             return False
     except Exception as e:
-        print(f"️ Error commit: {e}")
+        print(f"⚠️ Error commit: {e}")
         return False
 
 def elegir_siguiente_signo(estado):
@@ -218,19 +218,23 @@ def buscar_ultimo_video_largo():
         print(f"⚠️ Error buscando video: {e}")
         return None
 
+# ================================================================
+# 4. IA (DEEPSEEK) - PROMPT ANTI-REPETICIÓN EXTREMA
+# ================================================================
 PROMPT_SHORT_SEO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ Premium). Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
 Genera un guion para un YouTube SHORT de 25-35 segundos con SEO MÁXIMO y VARIEDAD TOTAL.
 
-REGLAS CRÍTICAS DE SEO Y VARIEDAD (NO LAS ROMPAS):
-1. TÍTULO (Máx 75 caracteres): DEBES elegir UNA de estas estructuras de forma ALEATORIA para que NUNCA se repitan entre signos:
-   - Opción A (Urgencia): "⚠️ [SIGNO]: No ignores esta señal del Universo hoy #[signo_lower] #horoscopo #astrologia"
-   - Opción B (Beneficio): "💰 [SIGNO]: Revelación inesperada de dinero y amor #[signo_lower] #zodiaco #astrologia"
-   - Opción C (Místico): "🔮 El cosmos tiene un mensaje urgente para [SIGNO] #[signo_lower] #horoscopo #energia"
-   - Opción D (Elemento): " [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco"
-   - Opción E (Destino): "✨ [SIGNO]: El universo conspira a tu favor en esto #[signo_lower] #horoscopo #astrologia"
+REGLAS CRÍTICAS DE SEO Y VARIEDAD (ANTI-REPETICIÓN ESTRICTA):
+1. TÍTULO (Máx 75 caracteres): DEBES crear un título 100% único y diferente a los días anteriores. PROHIBIDO usar frases genéricas repetidas como "Tu energía está imparable" o "El universo conspira". Usa combinaciones frescas de estas estructuras:
+   - Estructura 1: "🔮 {signo}: La energía revela tu {secreto/destino/verdad} oculta hoy"
+   - Estructura 2: "⚠️ ALERTA: Lo que nadie te dice sobre tu {amor/dinero/salud} hoy, {signo}"
+   - Estructura 3: "✨ {signo}: El cosmos te prepara una {sorpresa/recompensa/cambio} inesperada"
+   - Estructura 4: "🌙 {signo}: Tu lado {fuego/tierra/aire/agua} brilla con fuerza en {tema específico}"
+   - Estructura 5: "💫 VERDAD OCULTA: El mensaje que {signo} necesita escuchar HOY sobre {tema}"
+   (Siempre incluye #[signo_lower] #horoscopo #astrologia al final).
 
 2. DESCRIPCIÓN (ÚNICA): Escribe 2 líneas específicas para este signo, mencionando su elemento ({elemento}) y su energía actual. NO uses plantillas genéricas. Incluye el enlace al video largo.
 
@@ -244,7 +248,7 @@ REGLAS CRÍTICAS DE SEO Y VARIEDAD (NO LAS ROMPAS):
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔥 [SIGNO]: Tu energía está imparable, descubre por qué #[signo_lower] #astrologia #zodiaco",
+  "titulo": "🔮 {signo}: La energía revela tu destino oculto hoy #{signo_lower} #horoscopo #astrologia",
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
@@ -260,8 +264,9 @@ def llamar_deepseek_short(signo, fecha):
     )
     
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
+    # ✅ TEMPERATURA A 0.9 PARA FORZAR MÁXIMA CREATIVIDAD Y VARIACIÓN EN TÍTULOS
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], 
-               "temperature": 0.85, "response_format": {"type": "json_object"}}
+               "temperature": 0.9, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -286,7 +291,7 @@ def llamar_deepseek_short(signo, fecha):
     raise Exception("Fallo DeepSeek")
 
 # ================================================================
-# 4. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS)
+# 5. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS)
 # ================================================================
 def generar_cf_vertical(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
@@ -356,7 +361,7 @@ def obtener_imagen_short(signo, ruta):
         return None
 
 # ================================================================
-# 5. AUDIO (ROTACIÓN DE VOCES + FALLBACK gTTS ANTI-403)
+# 6. AUDIO (ROTACIÓN DE VOCES + FALLBACK gTTS ANTI-403)
 # ================================================================
 async def generar_audio(texto, ruta):
     max_retries = 3
@@ -454,7 +459,7 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     return salida
 
 # ================================================================
-# 6. SUBIDA
+# 7. SUBIDA
 # ================================================================
 def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
@@ -491,7 +496,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     return resp['id']
 
 # ================================================================
-# 7. MAIN (CON LÍMITE DE 3 SHORTS DIARIOS)
+# 8. MAIN (CON LÍMITE DE 3 SHORTS DIARIOS)
 # ================================================================
 def main():
     try:
@@ -502,14 +507,14 @@ def main():
         
         # ✅ VERIFICAR LÍMITE DE 3 SHORTS DIARIOS
         if len(estado.get("publicados_hoy", [])) >= MAX_SHORTS_DIARIOS:
-            print(f"️ LÍMITE DIARIO ALCANZADO: Ya se publicaron {MAX_SHORTS_DIARIOS} Shorts hoy.")
+            print(f"⚠️ LÍMITE DIARIO ALCANZADO: Ya se publicaron {MAX_SHORTS_DIARIOS} Shorts hoy.")
             print(f"📋 Signos publicados hoy: {estado['publicados_hoy']}")
             print(f"✨ El bot se detiene aquí para no exceder el límite.")
             return
         
         signo = elegir_siguiente_signo(estado)
-        print(f" Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
-        print(f" Progreso: {len(estado['publicados_hoy'])}/{MAX_SHORTS_DIARIOS} Shorts hoy")
+        print(f"🎯 Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
+        print(f"📊 Progreso: {len(estado['publicados_hoy'])}/{MAX_SHORTS_DIARIOS} Shorts hoy")
         
         hora_actual = ahora.hour
         if 4 <= hora_actual < 6: hora_base, min_rand = ahora.replace(hour=5, minute=0, second=0, microsecond=0), random.randint(5, 50)
