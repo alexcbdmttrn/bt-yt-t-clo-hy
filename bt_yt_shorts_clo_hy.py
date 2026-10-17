@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL 100% COMPLETA
-Fix: Títulos 100% únicos y dinámicos (anti-repetición extrema), Límite de 3 Shorts diarios, 
-     rotación de 5 voces femeninas + Fallback a gTTS, 2 intentos Cloudflare, SEO VidIQ Premium.
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN ÉLITE x10
+Fix: Imágenes de Arte Digital Premium (Flux), Tipografía Dinámica por Elemento, 
+     Títulos Anti-Spam de Alto CTR, SEO de Intención de Búsqueda, Límite 3 diarios.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -31,17 +31,11 @@ GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 REPO_NAME = os.getenv("GITHUB_REPOSITORY", "")
 
 CANAL_LINK = "https://www.youtube.com/@tucielhoy"
-
-# ✅ LÍMITE MÁXIMO DE SHORTS POR DÍA
 MAX_SHORTS_DIARIOS = 3
 
-# ✅ LISTA DE 5 VOCES FEMENINAS PARA ROTAR Y EVITAR MONOTONÍA
 VOICES_LIST = [
-    "es-MX-DaliaNeural",
-    "es-ES-ElviraNeural",
-    "es-AR-ElenaNeural",
-    "es-CO-SalomeNeural",
-    "es-US-PalomaNeural"
+    "es-MX-DaliaNeural", "es-ES-ElviraNeural", "es-AR-ElenaNeural", 
+    "es-CO-SalomeNeural", "es-US-PalomaNeural"
 ]
 
 ESTADO_FILE = "estado_shorts.json"
@@ -62,11 +56,20 @@ SIGNOS_COLA = [
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
+# ✅ UPGRADE 1: PROMPTS DE ARTE DIGITAL PREMIUM PARA FLUX
 PROMPTS_IMAGEN_ELEMENTO = {
-    "fuego": "vertical intense flames and golden sparks, dramatic red and orange cosmic explosion, mystical fire energy, vibrant glowing embers, 8k cinematic, highly detailed, no text",
-    "tierra": "vertical lush green forest with golden sunlight beams, mystical nature energy, vibrant emerald and gold, magical crystals and plants, 8k cinematic, highly detailed, no text",
-    "aire": "vertical swirling aurora borealis with electric blue and purple, cosmic wind energy, vibrant sky with shooting stars, 8k cinematic, highly detailed, no text",
-    "agua": "vertical deep ocean with bioluminescent creatures, mystical water energy, vibrant turquoise and silver, magical underwater light rays, 8k cinematic, highly detailed, no text"
+    "fuego": "vertical masterpiece, intense cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
+    "tierra": "vertical masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals and ancient plants, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
+    "aire": "vertical masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky with shooting stars, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
+    "agua": "vertical masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark"
+}
+
+# ✅ UPGRADE 2: ESTILOS DE TEXTO DINÁMICOS POR ELEMENTO
+ELEMENT_STYLES = {
+    "fuego": {"text_color": (255, 120, 0), "stroke_color": (255, 255, 0), "mantra_color": (255, 215, 0)},
+    "tierra": {"text_color": (0, 180, 50), "stroke_color": (255, 215, 0), "mantra_color": (255, 255, 255)},
+    "aire": {"text_color": (0, 220, 255), "stroke_color": (255, 255, 255), "mantra_color": (192, 192, 192)},
+    "agua": {"text_color": (138, 43, 226), "stroke_color": (0, 255, 255), "mantra_color": (0, 255, 255)}
 }
 
 HASHTAGS_SHORTS = "\n\n#shorts #horoscopo #zodiaco #astrologia #tucielhoy #mensajeDelUniverso #energiaDelDia"
@@ -76,28 +79,11 @@ def normalizar_ascii(texto):
     texto = ''.join(c for c in texto if not unicodedata.combining(c))
     return texto.lower()
 
-# ================================================================
-# 🚀 MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ)
-# ================================================================
 def construir_tags_shorts_premium(signo):
     signo_norm = normalizar_ascii(signo["nombre"])
-    generales = [
-        "shorts", "horoscopo", "astrologia", "zodiaco", "mensaje del universo", 
-        "energia del dia", "horoscopo diario", "ley de atraccion", "espiritualidad", 
-        "crecimiento personal", "universo"
-    ]
-    especificas = [
-        f"horoscopo {signo_norm}", f"{signo_norm} hoy", f"signo {signo_norm}", 
-        f"{signo_norm} amor", f"{signo_norm} dinero", f"prediccion {signo_norm}",
-        f"caracteristicas de {signo_norm}", f"{signo_norm} 2026"
-    ]
-    long_tail = [
-        f"horoscopo diario para {signo_norm}", 
-        f"mensaje urgente del universo para {signo_norm}", 
-        f"prediccion astrologica hoy {signo_norm}", 
-        f"que le espera a {signo_norm} hoy",
-        f"consejos astrologicos para {signo_norm}"
-    ]
+    generales = ["shorts", "horoscopo", "astrologia", "zodiaco", "mensaje del universo", "energia del dia", "horoscopo diario", "ley de atraccion", "espiritualidad", "crecimiento personal", "universo"]
+    especificas = [f"horoscopo {signo_norm}", f"{signo_norm} hoy", f"signo {signo_norm}", f"{signo_norm} amor", f"{signo_norm} dinero", f"prediccion {signo_norm}", f"caracteristicas de {signo_norm}", f"{signo_norm} 2026"]
+    long_tail = [f"horoscopo diario para {signo_norm}", f"mensaje urgente del universo para {signo_norm}", f"prediccion astrologica hoy {signo_norm}", f"que le espera a {signo_norm} hoy", f"consejos astrologicos para {signo_norm}"]
     
     all_tags = generales + especificas + long_tail
     unique_tags, total_chars = [], 0
@@ -108,12 +94,10 @@ def construir_tags_shorts_premium(signo):
             if total_chars + len(clean_tag) + 1 <= 480:
                 unique_tags.append(clean_tag)
                 total_chars += len(clean_tag) + 1
-                
-    print(f"   🏷️ Tags generados: {len(unique_tags)} tags, {total_chars}/480 caracteres")
     return unique_tags
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - VARIACIÓN VIRAL + ANTI-BLOQUEO TTS")
+print("📱 BT_YT_SHORTS_CLO_HY - VERSIÓN ÉLITE x10 (ANTI-SPAM)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -122,7 +106,7 @@ if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TO
     sys.exit(1)
 
 # ================================================================
-# 2. ESTADO DEL BOT (SECUENCIA CONTINUA + LÍMITE DE 3 SHORTS)
+# 2. ESTADO DEL BOT
 # ================================================================
 def cargar_estado():
     try:
@@ -130,8 +114,7 @@ def cargar_estado():
             data = json.load(f)
             hoy = datetime.now(TZ).strftime("%Y-%m-%d")
             if data.get("fecha") != hoy:
-                indice_actual = data.get("indice", 0)
-                print(f"🔄 Nuevo día detectado. Continuando secuencia desde el índice {indice_actual}.")
+                print(f"🔄 Nuevo día detectado. Continuando secuencia desde el índice {data.get('indice', 0)}.")
                 data["fecha"] = hoy
                 data["publicados_hoy"] = []
                 return data
@@ -143,26 +126,18 @@ def guardar_estado(data):
     with open(ESTADO_FILE + ".tmp", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     os.replace(ESTADO_FILE + ".tmp", ESTADO_FILE)
-    print(f"💾 Estado guardado: índice={data['indice']}, publicados_hoy={data['publicados_hoy']}")
 
 def hacer_commit_estado():
-    if not GITHUB_TOKEN:
-        print("⚠️ No hay GITHUB_TOKEN.")
-        return False
+    if not GITHUB_TOKEN: return False
     try:
         subprocess.run(["git", "config", "user.name", "bot-shorts"], check=False, capture_output=True)
         subprocess.run(["git", "config", "user.email", "bot@tucielhoy.com"], check=False, capture_output=True)
         subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False, capture_output=True)
         subprocess.run(["git", "add", ESTADO_FILE], check=False, capture_output=True)
-        subprocess.run(["git", "commit", "-m", f"🤖 Actualizar estado {datetime.now(TZ).strftime('%H:%M')}"], check=False, capture_output=True)
+        subprocess.run(["git", "commit", "-m", f"🤖 Update estado {datetime.now(TZ).strftime('%H:%M')}"], check=False, capture_output=True)
         remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{REPO_NAME}.git"
         result = subprocess.run(["git", "push", remote_url, "HEAD:main"], check=False, capture_output=True, text=True)
-        if result.returncode == 0:
-            print("✅ Estado commiteado.")
-            return True
-        else:
-            print(f"⚠️ No se pudo hacer push: {result.stderr[:100]}")
-            return False
+        return result.returncode == 0
     except Exception as e:
         print(f"⚠️ Error commit: {e}")
         return False
@@ -170,27 +145,21 @@ def hacer_commit_estado():
 def elegir_siguiente_signo(estado):
     indice = estado.get("indice", 0)
     publicados_hoy = estado.get("publicados_hoy", [])
-    
     if len(publicados_hoy) >= 12:
-        print("🔄 Ciclo completado. Reiniciando...")
-        indice = 0
-        publicados_hoy = []
+        indice, publicados_hoy = 0, []
     
     signo = SIGNOS_COLA[indice % 12]
-    
     if signo["nombre"] in publicados_hoy:
         for i in range(1, 12):
             candidato = SIGNOS_COLA[(indice + i) % 12]
             if candidato["nombre"] not in publicados_hoy:
-                signo = candidato
-                indice = (indice + i) % 12
+                signo, indice = candidato, (indice + i) % 12
                 break
     
     estado["indice"] = (indice + 1) % 12
     if signo["nombre"] not in publicados_hoy:
         publicados_hoy.append(signo["nombre"])
     estado["publicados_hoy"] = publicados_hoy
-    
     return signo
 
 # ================================================================
@@ -201,8 +170,7 @@ def obtener_credenciales_youtube():
     creds = Credentials(token=yt_token.get("token"), refresh_token=yt_token.get("refresh_token"),
                         token_uri=yt_token.get("token_uri"), client_id=yt_token.get("client_id"),
                         client_secret=yt_token.get("client_secret"), scopes=yt_token.get("scopes"))
-    if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+    if creds.expired and creds.refresh_token: creds.refresh(Request())
     return creds
 
 def buscar_ultimo_video_largo():
@@ -214,41 +182,36 @@ def buscar_ultimo_video_largo():
             if stats.get("items") and "M" in stats["items"][0]["contentDetails"]["duration"]:
                 return item["id"]["videoId"]
         return None
-    except Exception as e:
-        print(f"⚠️ Error buscando video: {e}")
+    except:
         return None
 
-# ================================================================
-# 4. IA (DEEPSEEK) - PROMPT ANTI-REPETICIÓN EXTREMA
-# ================================================================
+# ✅ UPGRADE 3: PROMPT ANTI-SPAM DE TÍTULOS CON INYECTOR DE VARIABLES
 PROMPT_SHORT_SEO = """
-Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO (Nivel VidIQ Premium). Tono: femenino, cálido, místico, URGENTE.
+Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral. Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
-Genera un guion para un YouTube SHORT de 25-35 segundos con SEO MÁXIMO y VARIEDAD TOTAL.
+Genera un guion para un YouTube SHORT de 25-35 segundos.
 
-REGLAS CRÍTICAS DE SEO Y VARIEDAD (ANTI-REPETICIÓN ESTRICTA):
-1. TÍTULO (Máx 75 caracteres): DEBES crear un título 100% único y diferente a los días anteriores. PROHIBIDO usar frases genéricas repetidas como "Tu energía está imparable" o "El universo conspira". Usa combinaciones frescas de estas estructuras:
-   - Estructura 1: "🔮 {signo}: La energía revela tu {secreto/destino/verdad} oculta hoy"
-   - Estructura 2: "⚠️ ALERTA: Lo que nadie te dice sobre tu {amor/dinero/salud} hoy, {signo}"
-   - Estructura 3: "✨ {signo}: El cosmos te prepara una {sorpresa/recompensa/cambio} inesperada"
-   - Estructura 4: "🌙 {signo}: Tu lado {fuego/tierra/aire/agua} brilla con fuerza en {tema específico}"
-   - Estructura 5: "💫 VERDAD OCULTA: El mensaje que {signo} necesita escuchar HOY sobre {tema}"
-   (Siempre incluye #[signo_lower] #horoscopo #astrologia al final).
+REGLAS CRÍTICAS ANTI-SPAM Y VIRALIDAD:
+1. TÍTULO (Máx 75 chars): DEBES combinar 1 Estructura + 1 Palabra de Poder + 1 Tema. PROHIBIDO repetir la misma combinación dos días seguidos.
+   - Estructuras: "🔮 {signo}: La {Palabra de Poder} sobre tu {Tema}", "⚠️ ALERTA: Lo que nadie te dice de tu {Tema} hoy, {signo}", "✨ {signo}: El cosmos te prepara un {Tema} inesperado", "💫 VERDAD OCULTA: El mensaje que {signo} necesita HOY"
+   - Palabras de Poder: Revelación, Alerta, Secreto, Impactante, Verdad, Destino, Prohibido, Urgente.
+   - Temas: Amor, Dinero, Karma, Ex, Salud, Suerte, Destino.
+   - SIEMPRE termina con: #{signo_lower} #horoscopo #astrologia
 
-2. DESCRIPCIÓN (ÚNICA): Escribe 2 líneas específicas para este signo, mencionando su elemento ({elemento}) y su energía actual. NO uses plantillas genéricas. Incluye el enlace al video largo.
+2. DESCRIPCIÓN: 2 líneas únicas mencionando su elemento ({elemento}) y su energía actual. Incluye enlace al video largo.
 
 3. GUION (65-85 palabras): 
-   - Gancho (3 seg): "{signo}, este mensaje del universo es solo para ti..."
-   - Cuerpo (15 seg): Energía, amor y dinero en frases cortas, poderosas y únicas para este signo.
-   - Mantra (4 seg): Frase de 5-7 palabras para decretar.
-   - CTA FINAL (5-7 seg, PERSUASIVO Y VARIADO): Elige una forma diferente de invitar a ver los videos largos (diarios, semanales, mensuales) en el canal.
+   - Gancho: "{signo}, este mensaje del universo es solo para ti..."
+   - Cuerpo: Energía, amor y dinero en frases cortas y poderosas.
+   - Mantra: Frase de 5-7 palabras para decretar.
+   - CTA: Invita a ver los videos largos (diarios, semanales, mensuales) en el canal.
 
-4. COMENTARIO FIJADO: Pregunta corta y mística + "Mira el video completo en mi canal".
+4. COMENTARIO FIJADO: Pregunta mística para generar comentarios + "Mira el video completo en mi canal".
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 {signo}: La energía revela tu destino oculto hoy #{signo_lower} #horoscopo #astrologia",
+  "titulo": "🔮 {signo}: La Revelación Impactante sobre tu Amor hoy #{signo_lower} #horoscopo #astrologia",
   "descripcion": "...",
   "comentario_fijado": "...",
   "guion": "...",
@@ -258,15 +221,11 @@ Responde SOLO JSON:
 
 def llamar_deepseek_short(signo, fecha):
     signo_lower = normalizar_ascii(signo["nombre"])
-    prompt = PROMPT_SHORT_SEO.format(
-        fecha=fecha, signo=signo["nombre"], simbolo=signo["simbolo"], 
-        elemento=signo["elemento"], signo_lower=signo_lower
-    )
-    
+    prompt = PROMPT_SHORT_SEO.format(fecha=fecha, signo=signo["nombre"], simbolo=signo["simbolo"], elemento=signo["elemento"], signo_lower=signo_lower)
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    # ✅ TEMPERATURA A 0.9 PARA FORZAR MÁXIMA CREATIVIDAD Y VARIACIÓN EN TÍTULOS
-    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], 
-               "temperature": 0.9, "response_format": {"type": "json_object"}}
+    
+    # Temperatura 0.95 para máxima variación y creatividad en títulos
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.95, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -278,9 +237,8 @@ def llamar_deepseek_short(signo, fecha):
             i_json, j_json = t.find("{"), t.rfind("}")
             datos = json.loads(t[i_json:j_json + 1], strict=False)
             
-            palabras = len(datos.get("guion", "").split())
-            if palabras < 55 or palabras > 95:
-                raise ValueError(f"Guion con {palabras} palabras")
+            if not (55 <= len(datos.get("guion", "").split()) <= 95):
+                raise ValueError(f"Guion con {len(datos.get('guion', '').split())} palabras")
             
             if "#" not in datos.get("titulo", ""):
                 datos["titulo"] = f"🔮 {signo['nombre']}: Mensaje del Universo #{signo_lower} #horoscopo #astrologia"
@@ -291,14 +249,13 @@ def llamar_deepseek_short(signo, fecha):
     raise Exception("Fallo DeepSeek")
 
 # ================================================================
-# 5. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS)
+# 4. IMÁGENES (FLUX PREMIUM + PEXELS)
 # ================================================================
 def generar_cf_vertical(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:100]
-    safe_prompt = f"{clean_prompt}, vertical composition, 8k, highly detailed, no text, no watermark"
-    payload = {"prompt": safe_prompt, "steps": 4}
+    clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:150] # Aumentado ligeramente para permitir más detalle
+    payload = {"prompt": clean_prompt, "steps": 4}
     
     r = requests.post(url, headers=headers, json=payload, timeout=60)
     if r.status_code != 200:
@@ -322,13 +279,12 @@ def generar_cf_vertical(prompt, ruta):
             new_h = int(w / target_ratio)
             im = im.crop((0, (h - new_h) // 2, w, (h + new_h) // 2))
         im = im.resize((W_SHORT, H_SHORT), Image.LANCZOS)
-        im.save(ruta, "JPEG", quality=92)
+        im.save(ruta, "JPEG", quality=95) # Calidad máxima
     return ruta
 
 def generar_pexels_vertical(query, ruta):
     headers = {"Authorization": PEXELS_API_KEY}
-    r = requests.get("https://api.pexels.com/v1/search", headers=headers, 
-                    params={"query": query, "orientation": "portrait", "size": "large", "per_page": 5}, timeout=15)
+    r = requests.get("https://api.pexels.com/v1/search", headers=headers, params={"query": query, "orientation": "portrait", "size": "large", "per_page": 5}, timeout=15)
     r.raise_for_status()
     fotos = r.json().get("photos", [])
     if not fotos: raise Exception("Sin Pexels")
@@ -336,18 +292,15 @@ def generar_pexels_vertical(query, ruta):
         with open(ruta, "wb") as f:
             for chunk in r_img.iter_content(8192): f.write(chunk)
     with Image.open(ruta) as im:
-        im = im.convert("RGB")
-        im = ImageOps.fit(im, (W_SHORT, H_SHORT), Image.LANCZOS)
-        im.save(ruta, "JPEG", quality=92)
+        im = ImageOps.fit(im.convert("RGB"), (W_SHORT, H_SHORT), Image.LANCZOS)
+        im.save(ruta, "JPEG", quality=95)
     return ruta
 
 def obtener_imagen_short(signo, ruta):
     prompt_epico = PROMPTS_IMAGEN_ELEMENTO.get(signo["elemento"], PROMPTS_IMAGEN_ELEMENTO["fuego"])
-    
-    # ✅ 2 INTENTOS EN CLOUDFLARE
     for i in range(1, 3):
         try:
-            print(f"   ☁️ CF Intento {i}/2...")
+            print(f"   ☁️ CF Intento {i}/2 (Arte Premium)...")
             return generar_cf_vertical(prompt_epico, ruta)
         except Exception as e:
             print(f"   ⚠️ CF intento {i} falló: {str(e)[:100]}")
@@ -361,14 +314,13 @@ def obtener_imagen_short(signo, ruta):
         return None
 
 # ================================================================
-# 6. AUDIO (ROTACIÓN DE VOCES + FALLBACK gTTS ANTI-403)
+# 5. AUDIO (ROTACIÓN + FALLBACK gTTS)
 # ================================================================
 async def generar_audio(texto, ruta):
     max_retries = 3
     voz_elegida = random.choice(VOICES_LIST)
     print(f"   🎤 Voz seleccionada: {voz_elegida}")
     
-    # Intento 1: Edge TTS (Mejor calidad)
     for attempt in range(max_retries):
         try:
             print(f"   🎤 Generando audio con Edge TTS (Intento {attempt + 1}/{max_retries})...")
@@ -378,33 +330,32 @@ async def generar_audio(texto, ruta):
                 print(f"   ✅ Audio Edge TTS generado exitosamente.")
                 return True
         except Exception as e:
-            error_msg = str(e)
-            print(f"   ⚠️ Error en Edge TTS (Intento {attempt + 1}): {error_msg[:120]}")
             if attempt < max_retries - 1:
                 print(f"   ⏳ Esperando 5 segundos antes de reintentar...")
                 await asyncio.sleep(5)
     
-    # ✅ FALLBACK ROBUSTO: gTTS (No suele ser bloqueado en GitHub Actions)
-    print("   ⚠️ Edge TTS falló tras 3 intentos (posible bloqueo de IP de Microsoft). Activando respaldo gTTS...")
+    print("   ⚠️ Edge TTS falló. Activando respaldo gTTS...")
     try:
         tts = gTTS(text=texto, lang='es', slow=False)
         tts.save(ruta)
         if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
-            print(f"   ✅ Audio gTTS generado exitosamente como respaldo.")
+            print(f"   ✅ Audio gTTS generado exitosamente.")
             return True
-        else:
-            raise Exception("El archivo gTTS generado está vacío.")
+        raise Exception("Archivo gTTS vacío.")
     except Exception as e:
-        raise Exception(f"Fallo definitivo en TTS (Edge y gTTS). Último error: {str(e)}")
+        raise Exception(f"Fallo definitivo en TTS: {str(e)}")
 
+# ================================================================
+# 6. RENDERIZADO CON TIPOGRAFÍA DINÁMICA
+# ================================================================
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
     print(f"   ⏱️ Duración: {dur:.1f} seg")
     
     img = Image.open(img_path).convert("RGB")
-    img = ImageEnhance.Brightness(img).enhance(1.1)
-    img = ImageEnhance.Contrast(img).enhance(1.2)
-    img = ImageEnhance.Color(img).enhance(1.4)
+    img = ImageEnhance.Brightness(img).enhance(1.15)
+    img = ImageEnhance.Contrast(img).enhance(1.25)
+    img = ImageEnhance.Color(img).enhance(1.5) # Más vibrante
     
     draw = ImageDraw.Draw(img)
     try:
@@ -413,19 +364,24 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     except:
         font_nombre = font_mantra = ImageFont.load_default()
     
-    draw.text((W_SHORT//2, 400), f"{signo['simbolo']} {signo['nombre'].upper()}", font=font_nombre, fill=(255, 255, 255), anchor="mm", stroke_width=12, stroke_fill=(0, 0, 0))
-    draw.text((W_SHORT//2, 1600), guion.split('.')[-1].strip()[:80], font=font_mantra, fill=(255, 215, 0), anchor="mm", stroke_width=8, stroke_fill=(0, 0, 0))
+    # ✅ UPGRADE: Colores dinámicos según el elemento
+    estilo = ELEMENT_STYLES.get(signo["elemento"], ELEMENT_STYLES["fuego"])
+    
+    draw.text((W_SHORT//2, 400), f"{signo['simbolo']} {signo['nombre'].upper()}", font=font_nombre, 
+              fill=estilo["text_color"], anchor="mm", stroke_width=14, stroke_fill=estilo["stroke_color"])
+    
+    mantra = guion.split('.')[-1].strip()[:80]
+    draw.text((W_SHORT//2, 1600), mantra, font=font_mantra, 
+              fill=estilo["mantra_color"], anchor="mm", stroke_width=10, stroke_fill=(0, 0, 0))
+    
     img.save("temp_short_frame.jpg")
     
     _VIG = {}
     def vignette_vert(size, base=1.0, fuerza=0.3):
-        k = (size, base)
-        if k not in _VIG:
-            w, h = size
-            y, x = np.ogrid[-1:1:h * 1j, -1:1:w * 1j]
-            d = np.clip(np.sqrt(x ** 2 + y ** 2) / 1.414, 0, 1)
-            _VIG[k] = ((1 - fuerza * d ** 2.2) * base).astype(np.float32)[..., None]
-        return _VIG[k]
+        w, h = size
+        y, x = np.ogrid[-1:1:h * 1j, -1:1:w * 1j]
+        d = np.clip(np.sqrt(x ** 2 + y ** 2) / 1.414, 0, 1)
+        return ((1 - fuerza * d ** 2.2) * base).astype(np.float32)[..., None]
     
     def frame(t):
         base = Image.open("temp_short_frame.jpg").convert("RGB")
@@ -496,7 +452,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     return resp['id']
 
 # ================================================================
-# 8. MAIN (CON LÍMITE DE 3 SHORTS DIARIOS)
+# 8. MAIN
 # ================================================================
 def main():
     try:
@@ -505,11 +461,9 @@ def main():
         
         estado = cargar_estado()
         
-        # ✅ VERIFICAR LÍMITE DE 3 SHORTS DIARIOS
         if len(estado.get("publicados_hoy", [])) >= MAX_SHORTS_DIARIOS:
             print(f"⚠️ LÍMITE DIARIO ALCANZADO: Ya se publicaron {MAX_SHORTS_DIARIOS} Shorts hoy.")
             print(f"📋 Signos publicados hoy: {estado['publicados_hoy']}")
-            print(f"✨ El bot se detiene aquí para no exceder el límite.")
             return
         
         signo = elegir_siguiente_signo(estado)
