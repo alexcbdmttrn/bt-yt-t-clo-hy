@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA)
-Fix: Limpieza extrema de tags para evitar error 'invalidTags' de YouTube, 
-     Prompts de imagen 'Safe' para evitar falsos positivos de Cloudflare.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA TÍTULOS)
+Fix: Títulos ahora indican claramente que son para los "12 Signos" (evita confusión), 
+     Limpieza extrema de tags, Prompts de imagen 'Safe' para Cloudflare.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -61,22 +61,16 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     tags_finales = []
     total_chars = 0
     
-    # Combinar todas las fuentes de tags
     todas_las_fuentes = list(TAGS_GENERALES_SIEMPRE) + list(TAGS_POR_MODO.get(modo, []))
     if isinstance(tags_dinamicos_ia, list):
         todas_las_fuentes.extend(tags_dinamicos_ia)
     
     for tag in todas_las_fuentes:
-        # 1. Normalizar y limpiar a fondo
         tag_limpio = normalizar_ascii(str(tag)).strip()
-        # SOLO permitir letras, números y espacios (elimina acentos y símbolos)
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
         tag_limpio = re.sub(r'\s+', ' ', tag_limpio).strip()
         
-        # 2. Validar longitud de cada tag (YouTube pide entre 2 y 30 caracteres)
         if 2 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
-            # YouTube limita la suma total de caracteres de TODOS los tags a 500.
-            # Usamos 490 para tener un margen de seguridad absoluto.
             if total_chars + len(tag_limpio) + 1 <= 490:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio) + 1
@@ -125,7 +119,7 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL
+# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (CORREGIDO PARA 12 SIGNOS)
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral (Nivel VidIQ x10). Tono: femenino, cálido, místico, URGENTE.
@@ -133,14 +127,14 @@ Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
 REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN EXTREMA):
-1. TÍTULO (Máx 70 chars, Alto CTR y 100% ÚNICO): DEBES combinar 1 Estructura + 1 Palabra de Poder + 1 Tema.
-   - Estructuras: "🔮 [SIGNO]: La [Palabra de Poder] sobre tu [Tema]", "⚠️ ALERTA: Lo que nadie te dice de tu [Tema] hoy, [SIGNO]", "✨ [SIGNO]: El cosmos te prepara un [Tema] inesperado", "💫 VERDAD OCULTA: El mensaje que [SIGNO] necesita HOY"
+1. TÍTULO (Máx 70 chars, Alto CTR y 100% ÚNICO): DEBE dejar claro que es un horóscopo para los 12 SIGNOS. NO pongas un solo signo en el título principal.
+   - Estructuras: "🔮 HORÓSCOPO HOY: La [Palabra de Poder] para los 12 Signos | [Tránsito]", "⚠️ ALERTA ZODIACAL: Lo que el cosmos revela a los 12 Signos hoy | [Tránsito]", "✨ HORÓSCOPO COMPLETO: Un [Tema] inesperado espera a los 12 Signos | [Tránsito]", "💫 VERDAD OCULTA: El mensaje urgente que los 12 Signos necesitan HOY | [Tránsito]"
    - Palabras de Poder: Revelación, Alerta, Secreto, Impactante, Verdad, Destino, Prohibido, Urgente, Sorpresa.
-   - Temas: Amor, Dinero, Karma, Ex, Salud, Suerte, Destino, Trabajo.
-   - SIEMPRE termina con: | [Tránsito lunar actual, ej: Luna en Cáncer]
+   - Temas: Amor, Dinero, Karma, Suerte, Destino, Cambio.
+   - Tránsito: ej: "Luna en Cáncer", "Mercurio en Géminis", etc.
 
 2. DESCRIPCIÓN (SEO Enriquecido x10): 3 párrafos. 
-   - P1: Gancho emocional con palabras clave de cola larga (ej: "¿Qué le espera hoy a [SIGNO] en el amor y el dinero?").
+   - P1: Gancho emocional mencionando "horóscopo diario para los 12 signos", "mensaje del universo" y la energía de hoy.
    - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) usando lenguaje natural y persuasivo.
    - P3: Llamado a la acción fuerte para suscribirse y comentar su signo para decretar.
 
@@ -153,9 +147,9 @@ REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN EXTREMA):
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 ARIES: La Revelación Impactante sobre tu Amor hoy | Luna en Cáncer",
+  "titulo": "🔮 HORÓSCOPO HOY: La Revelación Impactante para los 12 Signos | Luna en Cáncer",
   "descripcion": "...",
-  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral", "que le espera a aries hoy"],
+  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral", "horoscopo completo"],
   "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios para decretar.",
   "miniatura_prompt": "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k resolution, trending on ArtStation, no text, no watermark",
   "miniatura_texto": "VERDAD OCULTA",
