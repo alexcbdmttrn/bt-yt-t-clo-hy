@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN ÉLITE x10
-Fix: Imágenes de Arte Digital Premium (Flux), Tipografía Dinámica por Elemento, 
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA)
+Fix: Error de formato en prompt resuelto, Imágenes de Arte Digital Premium, Tipografía Dinámica, 
      Títulos Anti-Spam de Alto CTR, SEO de Intención de Búsqueda, Límite 3 diarios.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
@@ -56,7 +56,7 @@ SIGNOS_COLA = [
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
-# ✅ UPGRADE 1: PROMPTS DE ARTE DIGITAL PREMIUM PARA FLUX
+# ✅ PROMPTS DE ARTE DIGITAL PREMIUM PARA FLUX
 PROMPTS_IMAGEN_ELEMENTO = {
     "fuego": "vertical masterpiece, intense cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
     "tierra": "vertical masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals and ancient plants, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
@@ -64,7 +64,7 @@ PROMPTS_IMAGEN_ELEMENTO = {
     "agua": "vertical masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark"
 }
 
-# ✅ UPGRADE 2: ESTILOS DE TEXTO DINÁMICOS POR ELEMENTO
+# ✅ ESTILOS DE TEXTO DINÁMICOS POR ELEMENTO
 ELEMENT_STYLES = {
     "fuego": {"text_color": (255, 120, 0), "stroke_color": (255, 255, 0), "mantra_color": (255, 215, 0)},
     "tierra": {"text_color": (0, 180, 50), "stroke_color": (255, 215, 0), "mantra_color": (255, 255, 255)},
@@ -185,7 +185,7 @@ def buscar_ultimo_video_largo():
     except:
         return None
 
-# ✅ UPGRADE 3: PROMPT ANTI-SPAM DE TÍTULOS CON INYECTOR DE VARIABLES
+# ✅ CORREGIDO: Usamos [ ] para las variables del prompt que NO son reemplazadas por Python
 PROMPT_SHORT_SEO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral. Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
@@ -194,7 +194,7 @@ Genera un guion para un YouTube SHORT de 25-35 segundos.
 
 REGLAS CRÍTICAS ANTI-SPAM Y VIRALIDAD:
 1. TÍTULO (Máx 75 chars): DEBES combinar 1 Estructura + 1 Palabra de Poder + 1 Tema. PROHIBIDO repetir la misma combinación dos días seguidos.
-   - Estructuras: "🔮 {signo}: La {Palabra de Poder} sobre tu {Tema}", "⚠️ ALERTA: Lo que nadie te dice de tu {Tema} hoy, {signo}", "✨ {signo}: El cosmos te prepara un {Tema} inesperado", "💫 VERDAD OCULTA: El mensaje que {signo} necesita HOY"
+   - Estructuras: "🔮 {signo}: La [Palabra de Poder] sobre tu [Tema]", "⚠️ ALERTA: Lo que nadie te dice de tu [Tema] hoy, {signo}", "✨ {signo}: El cosmos te prepara un [Tema] inesperado", "💫 VERDAD OCULTA: El mensaje que {signo} necesita HOY"
    - Palabras de Poder: Revelación, Alerta, Secreto, Impactante, Verdad, Destino, Prohibido, Urgente.
    - Temas: Amor, Dinero, Karma, Ex, Salud, Suerte, Destino.
    - SIEMPRE termina con: #{signo_lower} #horoscopo #astrologia
@@ -221,7 +221,10 @@ Responde SOLO JSON:
 
 def llamar_deepseek_short(signo, fecha):
     signo_lower = normalizar_ascii(signo["nombre"])
-    prompt = PROMPT_SHORT_SEO.format(fecha=fecha, signo=signo["nombre"], simbolo=signo["simbolo"], elemento=signo["elemento"], signo_lower=signo_lower)
+    prompt = PROMPT_SHORT_SEO.format(
+        fecha=fecha, signo=signo["nombre"], simbolo=signo["simbolo"], 
+        elemento=signo["elemento"], signo_lower=signo_lower
+    )
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
     # Temperatura 0.95 para máxima variación y creatividad en títulos
@@ -254,7 +257,7 @@ def llamar_deepseek_short(signo, fecha):
 def generar_cf_vertical(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
     headers = {"Authorization": f"Bearer {CF_API_TOKEN}"}
-    clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:150] # Aumentado ligeramente para permitir más detalle
+    clean_prompt = re.sub(r'[^a-zA-Z\s]', ' ', prompt)[:150]
     payload = {"prompt": clean_prompt, "steps": 4}
     
     r = requests.post(url, headers=headers, json=payload, timeout=60)
@@ -279,7 +282,7 @@ def generar_cf_vertical(prompt, ruta):
             new_h = int(w / target_ratio)
             im = im.crop((0, (h - new_h) // 2, w, (h + new_h) // 2))
         im = im.resize((W_SHORT, H_SHORT), Image.LANCZOS)
-        im.save(ruta, "JPEG", quality=95) # Calidad máxima
+        im.save(ruta, "JPEG", quality=95)
     return ruta
 
 def generar_pexels_vertical(query, ruta):
@@ -355,7 +358,7 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     img = Image.open(img_path).convert("RGB")
     img = ImageEnhance.Brightness(img).enhance(1.15)
     img = ImageEnhance.Contrast(img).enhance(1.25)
-    img = ImageEnhance.Color(img).enhance(1.5) # Más vibrante
+    img = ImageEnhance.Color(img).enhance(1.5)
     
     draw = ImageDraw.Draw(img)
     try:
@@ -364,7 +367,6 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
     except:
         font_nombre = font_mantra = ImageFont.load_default()
     
-    # ✅ UPGRADE: Colores dinámicos según el elemento
     estilo = ELEMENT_STYLES.get(signo["elemento"], ELEMENT_STYLES["fuego"])
     
     draw.text((W_SHORT//2, 400), f"{signo['simbolo']} {signo['nombre'].upper()}", font=font_nombre, 
