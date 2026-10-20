@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (MINIATURAS VARIABLES)
-Fix: Títulos indican "12 Signos", Limpieza extrema de tags, Prompts 'Safe', 
-     y AHORA: Texto de miniatura 100% variable y de alto impacto (anti-spam).
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA TAGS)
+Fix: Cálculo exacto de longitud de tags para la API de YouTube (sin contar comas), 
+     Títulos indican "12 Signos", Prompts 'Safe', Texto de miniatura 100% variable.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -34,7 +34,7 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ x10 - A PRUEBA DE FALLOS)
+# 🏷️ MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ x10 - CÁLCULO EXACTO)
 # ================================================================
 TAGS_GENERALES_SIEMPRE = [
     "horoscopo", "horoscopo diario", "astrologia", "zodiaco", "tu cielo hoy",
@@ -66,16 +66,21 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
         todas_las_fuentes.extend(tags_dinamicos_ia)
     
     for tag in todas_las_fuentes:
+        # 1. Normalizar y limpiar a fondo
         tag_limpio = normalizar_ascii(str(tag)).strip()
+        # SOLO permitir letras, números y espacios (elimina acentos y símbolos)
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
         tag_limpio = re.sub(r'\s+', ' ', tag_limpio).strip()
         
+        # 2. Validar longitud de cada tag (YouTube pide entre 2 y 30 caracteres)
         if 2 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
-            if total_chars + len(tag_limpio) + 1 <= 490:
+            # ✅ CORRECCIÓN: YouTube cuenta la longitud de las cadenas, NO las comas.
+            # Usamos 480 como límite seguro (el máximo absoluto es 500).
+            if total_chars + len(tag_limpio) <= 480:
                 tags_finales.append(tag_limpio)
-                total_chars += len(tag_limpio) + 1
+                total_chars += len(tag_limpio)
                 
-    print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars}/490 caracteres")
+    print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars}/480 caracteres")
     print(f"   Tags enviados a YouTube: {', '.join(tags_finales)}")
     return tags_finales
 
@@ -119,7 +124,7 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (MINIATURAS VARIABLES)
+# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral (Nivel VidIQ x10). Tono: femenino, cálido, místico, URGENTE.
@@ -566,7 +571,6 @@ def main():
         print("🖼️ 3. Creando miniatura 8K Brillante...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
         
-        # ✅ AQUÍ SE USAN LAS VARIABLES DINÁMICAS QUE LA IA GENERA
         texto_miniatura = datos.get("miniatura_texto", "MENSAJE URGENTE")
         banner_miniatura = datos.get("miniatura_banner", "PARA LOS 12 SIGNOS")
         print(f"   📝 Texto de miniatura: '{texto_miniatura}' | Banner: '{banner_miniatura}'")
