@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA TÍTULOS)
-Fix: Títulos ahora indican claramente que son para los "12 Signos" (evita confusión), 
-     Limpieza extrema de tags, Prompts de imagen 'Safe' para Cloudflare.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (MINIATURAS VARIABLES)
+Fix: Títulos indican "12 Signos", Limpieza extrema de tags, Prompts 'Safe', 
+     y AHORA: Texto de miniatura 100% variable y de alto impacto (anti-spam).
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -119,7 +119,7 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (CORREGIDO PARA 12 SIGNOS)
+# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL (MINIATURAS VARIABLES)
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral (Nivel VidIQ x10). Tono: femenino, cálido, místico, URGENTE.
@@ -140,10 +140,11 @@ REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN EXTREMA):
 
 3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..." y ser único.
 
-4. IMÁGENES Y MINIATURA (ARTE DIGITAL PREMIUM): 
+4. IMÁGENES Y MINIATURA (ARTE DIGITAL PREMIUM Y VARIABLE): 
    - visual_prompt: Debe ser una descripción de "Arte Digital Premium" (ej: "masterpiece, radiant cosmic energy, volumetric lighting, vibrant color grading, hyper-detailed, 8k, trending on ArtStation, no text").
    - miniatura_prompt: Similar, enfocado en alta calidad visual y colores vibrantes.
-   - miniatura_texto: 2-3 palabras MAYÚSCULAS de alto impacto (ej: "REVELACIÓN IMPACTANTE").
+   - miniatura_texto: 2-3 palabras MAYÚSCULAS de ALTO IMPACTO y ÚNICAS para el día. ¡PROHIBIDO repetir siempre "VERDAD OCULTA"! Elige una diferente según el tema: "CAMBIO RADICAL", "DINERO INESPERADO", "ALERTA AMOR", "TU DESTINO", "SEÑAL URGENTE", "NUEVA ETAPA", "KARMA ACTIVO".
+   - miniatura_banner: 2-3 palabras que complementen: "PARA LOS 12 SIGNOS", "HORÓSCOPO DE HOY", "MENSAJE DEL UNIVERSO", "PREDICCIÓN ASTROLÓGICA".
 
 Responde SOLO JSON:
 {{
@@ -152,8 +153,8 @@ Responde SOLO JSON:
   "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral", "horoscopo completo"],
   "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios para decretar.",
   "miniatura_prompt": "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k resolution, trending on ArtStation, no text, no watermark",
-  "miniatura_texto": "VERDAD OCULTA",
-  "miniatura_banner": "DEL UNIVERSO",
+  "miniatura_texto": "CAMBIO RADICAL",
+  "miniatura_banner": "PARA LOS 12 SIGNOS",
   "signos": [
     {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "masterpiece, radiant cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, highly detailed, 8k resolution, cinematic composition, no text"}},
     {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, highly detailed, 8k, cinematic, no text"}},
@@ -564,7 +565,13 @@ def main():
             
         print("🖼️ 3. Creando miniatura 8K Brillante...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
-        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "VERDAD OCULTA"), datos.get("miniatura_banner", "DEL UNIVERSO"), "miniatura.jpg")
+        
+        # ✅ AQUÍ SE USAN LAS VARIABLES DINÁMICAS QUE LA IA GENERA
+        texto_miniatura = datos.get("miniatura_texto", "MENSAJE URGENTE")
+        banner_miniatura = datos.get("miniatura_banner", "PARA LOS 12 SIGNOS")
+        print(f"   📝 Texto de miniatura: '{texto_miniatura}' | Banner: '{banner_miniatura}'")
+        
+        crear_miniatura_8k_elite("temp_bg_thumb.jpg", texto_miniatura, banner_miniatura, "miniatura.jpg")
         
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
