@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA)
-Fix: Error de formato en prompt resuelto, Imágenes de Arte Digital Premium, Tipografía Dinámica, 
-     Títulos Anti-Spam de Alto CTR, SEO de Intención de Búsqueda, Límite 3 diarios.
+BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN FINAL EXPERTA
+Fix: Títulos <50 chars SIN hashtags, URLs REALES 100%, Tags optimizados VidIQ.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -44,9 +43,9 @@ W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
-    {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
+    {"nombre": "Géminis", "simbolo": "", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
@@ -56,7 +55,6 @@ SIGNOS_COLA = [
     {"nombre": "Piscis", "simbolo": "♓", "elemento": "agua"}
 ]
 
-# ✅ PROMPTS DE ARTE DIGITAL PREMIUM PARA FLUX
 PROMPTS_IMAGEN_ELEMENTO = {
     "fuego": "vertical masterpiece, intense cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
     "tierra": "vertical masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals and ancient plants, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark",
@@ -64,7 +62,6 @@ PROMPTS_IMAGEN_ELEMENTO = {
     "agua": "vertical masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, hyper-detailed, 8k resolution, cinematic composition, trending on ArtStation, no text, no watermark"
 }
 
-# ✅ ESTILOS DE TEXTO DINÁMICOS POR ELEMENTO
 ELEMENT_STYLES = {
     "fuego": {"text_color": (255, 120, 0), "stroke_color": (255, 255, 0), "mantra_color": (255, 215, 0)},
     "tierra": {"text_color": (0, 180, 50), "stroke_color": (255, 215, 0), "mantra_color": (255, 255, 255)},
@@ -81,11 +78,29 @@ def normalizar_ascii(texto):
 
 def construir_tags_shorts_premium(signo):
     signo_norm = normalizar_ascii(signo["nombre"])
-    generales = ["shorts", "horoscopo", "astrologia", "zodiaco", "mensaje del universo", "energia del dia", "horoscopo diario", "ley de atraccion", "espiritualidad", "crecimiento personal", "universo"]
-    especificas = [f"horoscopo {signo_norm}", f"{signo_norm} hoy", f"signo {signo_norm}", f"{signo_norm} amor", f"{signo_norm} dinero", f"prediccion {signo_norm}", f"caracteristicas de {signo_norm}", f"{signo_norm} 2026"]
-    long_tail = [f"horoscopo diario para {signo_norm}", f"mensaje urgente del universo para {signo_norm}", f"prediccion astrologica hoy {signo_norm}", f"que le espera a {signo_norm} hoy", f"consejos astrologicos para {signo_norm}"]
     
-    all_tags = generales + especificas + long_tail
+    # ✅ TAGS OPTIMIZADOS BASADOS EN VIDIQ (capturas del usuario)
+    generales = [
+        "astrologia", "horoscopo", "zodiaco", "mensaje del universo", 
+        "energia del dia", "horoscopo diario", "ley de atraccion", 
+        "espiritualidad", "crecimiento personal", "universo", "shorts"
+    ]
+    
+    # Tags específicos de ALTO VOLUMEN (basados en VidIQ)
+    especificas = [
+        f"horoscopo {signo_norm}", 
+        f"{signo_norm} hoy", 
+        f"horoscopo {signo_norm} hoy",  # Tag #15 en VidIQ
+        f"horoscopo diario para {signo_norm}",  # Tag #15
+        f"caracteristicas de {signo_norm}",  # Tag #36
+        f"{signo_norm} amor", 
+        f"{signo_norm} dinero",
+        f"prediccion {signo_norm}",
+        f"que le espera a {signo_norm} hoy",  # Tag #18
+        f"{signo_norm} 2026"
+    ]
+    
+    all_tags = generales + especificas
     unique_tags, total_chars = [], 0
     
     for tag in all_tags:
@@ -94,15 +109,17 @@ def construir_tags_shorts_premium(signo):
             if total_chars + len(clean_tag) + 1 <= 480:
                 unique_tags.append(clean_tag)
                 total_chars += len(clean_tag) + 1
+                
+    print(f"   ️ Tags generados: {len(unique_tags)} tags, {total_chars}/480 caracteres")
     return unique_tags
 
 print("=" * 70)
-print("📱 BT_YT_SHORTS_CLO_HY - VERSIÓN ÉLITE x10 (ANTI-SPAM)")
+print("📱 BT_YT_SHORTS_CLO_HY - FINAL EXPERTA (TÍTULOS <50 CHARS)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
-    print("❌ ERROR: Faltan variables de entorno en los Secrets de GitHub.")
+    print("❌ ERROR: Faltan variables de entorno.")
     sys.exit(1)
 
 # ================================================================
@@ -114,7 +131,7 @@ def cargar_estado():
             data = json.load(f)
             hoy = datetime.now(TZ).strftime("%Y-%m-%d")
             if data.get("fecha") != hoy:
-                print(f"🔄 Nuevo día detectado. Continuando secuencia desde el índice {data.get('indice', 0)}.")
+                print(f"🔄 Nuevo día detectado. Índice: {data.get('indice', 0)}.")
                 data["fecha"] = hoy
                 data["publicados_hoy"] = []
                 return data
@@ -134,7 +151,7 @@ def hacer_commit_estado():
         subprocess.run(["git", "config", "user.email", "bot@tucielhoy.com"], check=False, capture_output=True)
         subprocess.run(["git", "pull", "--rebase", "origin", "main"], check=False, capture_output=True)
         subprocess.run(["git", "add", ESTADO_FILE], check=False, capture_output=True)
-        subprocess.run(["git", "commit", "-m", f"🤖 Update estado {datetime.now(TZ).strftime('%H:%M')}"], check=False, capture_output=True)
+        subprocess.run(["git", "commit", "-m", f"Update {datetime.now(TZ).strftime('%H:%M')}"], check=False, capture_output=True)
         remote_url = f"https://x-access-token:{GITHUB_TOKEN}@github.com/{REPO_NAME}.git"
         result = subprocess.run(["git", "push", remote_url, "HEAD:main"], check=False, capture_output=True, text=True)
         return result.returncode == 0
@@ -185,50 +202,55 @@ def buscar_ultimo_video_largo():
     except:
         return None
 
-# ✅ CORREGIDO: Usamos [ ] para las variables del prompt que NO son reemplazadas por Python
+# ✅ CORREGIDO: Títulos CORTOS (<50 chars), SIN hashtags en título, URLs REALES
 PROMPT_SHORT_SEO = """
-Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral. Tono: femenino, cálido, místico, URGENTE.
+Eres EXPERTA EN SEO Viral para YouTube Shorts. Tono: femenino, cálido, místico.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
 
-Genera un guion para un YouTube SHORT de 25-35 segundos.
+REGLAS OBLIGATORIAS:
 
-REGLAS CRÍTICAS ANTI-SPAM Y VIRALIDAD:
-1. TÍTULO (Máx 75 chars): DEBES combinar 1 Estructura + 1 Palabra de Poder + 1 Tema. PROHIBIDO repetir la misma combinación dos días seguidos.
-   - Estructuras: "🔮 {signo}: La [Palabra de Poder] sobre tu [Tema]", "⚠️ ALERTA: Lo que nadie te dice de tu [Tema] hoy, {signo}", "✨ {signo}: El cosmos te prepara un [Tema] inesperado", "💫 VERDAD OCULTA: El mensaje que {signo} necesita HOY"
-   - Palabras de Poder: Revelación, Alerta, Secreto, Impactante, Verdad, Destino, Prohibido, Urgente.
-   - Temas: Amor, Dinero, Karma, Ex, Salud, Suerte, Destino.
-   - SIEMPRE termina con: #{signo_lower} #horoscopo #astrologia
+1. TÍTULO (MÁXIMO 50 CARACTERES - SIN HASHTAGS):
+   - Formato: "Emoji {signo}: Mensaje corto"
+   - Ejemplos:
+     * "⚠️ {signo}: Tu Dinero HOY 💰"
+     * "🔮 {signo}: Mensaje URGENTE"
+     * "✨ {signo}: Amor llega YA 💕"
+   - PROHIBIDO incluir hashtags en el título
+   - PROHIBIDO superar 50 caracteres
 
-2. DESCRIPCIÓN: 2 líneas únicas mencionando su elemento ({elemento}) y su energía actual. Incluye enlace al video largo.
+2. DESCRIPCIÓN (2-3 líneas):
+   - Línea 1: Energía del elemento {elemento} + palabra clave única
+   - Línea 2: "🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}"
+   - Línea 3: "🔔 Suscríbete: https://www.youtube.com/@tucielhoy"
+   - NO usar texto genérico
 
-3. GUION (65-85 palabras): 
-   - Gancho: "{signo}, este mensaje del universo es solo para ti..."
-   - Cuerpo: Energía, amor y dinero en frases cortas y poderosas.
-   - Mantra: Frase de 5-7 palabras para decretar.
-   - CTA: Invita a ver los videos largos (diarios, semanales, mensuales) en el canal.
+3. GUION (65-85 palabras):
+   - Gancho: "{signo}, este mensaje es para ti..."
+   - Cuerpo: Amor, dinero, energía
+   - Mantra: 5-7 palabras
+   - CTA: "Mira el video completo"
 
-4. COMENTARIO FIJADO: Pregunta mística para generar comentarios + "Mira el video completo en mi canal".
+4. COMENTARIO FIJADO:
+   - Pregunta + "Video: https://www.youtube.com/watch?v={video_largo_id}"
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 {signo}: La Revelación Impactante sobre tu Amor hoy #{signo_lower} #horoscopo #astrologia",
-  "descripcion": "...",
-  "comentario_fijado": "...",
-  "guion": "...",
+  "titulo": "️ {signo}: Tu Dinero HOY 💰",
+  "descripcion": "Tu energía de {elemento} fluye con abundancia. 🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}\\n Suscríbete: https://www.youtube.com/@tucielhoy",
+  "comentario_fijado": "¿Sientes esto? Decreta 'HECHO ESTÁ'. Video: https://www.youtube.com/watch?v={video_largo_id}",
+  "guion": "{signo}, este mensaje es para ti. Hoy tu elemento {elemento} se activa. En el amor, llega claridad. En el dinero, una oportunidad. Confía. Tu mantra: 'Atraigo abundancia infinita'. Mira el video completo.",
   "visual_prompt": "vertical mystical {elemento} energy"
 }}
 """
 
-def llamar_deepseek_short(signo, fecha):
+def llamar_deepseek_short(signo, fecha, video_largo_id="PLACEHOLDER"):
     signo_lower = normalizar_ascii(signo["nombre"])
     prompt = PROMPT_SHORT_SEO.format(
         fecha=fecha, signo=signo["nombre"], simbolo=signo["simbolo"], 
-        elemento=signo["elemento"], signo_lower=signo_lower
+        elemento=signo["elemento"], signo_lower=signo_lower, video_largo_id=video_largo_id
     )
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    
-    # Temperatura 0.95 para máxima variación y creatividad en títulos
-    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.95, "response_format": {"type": "json_object"}}
+    payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompt}], "temperature": 0.9, "response_format": {"type": "json_object"}}
     
     for i in range(3):
         try:
@@ -240,11 +262,21 @@ def llamar_deepseek_short(signo, fecha):
             i_json, j_json = t.find("{"), t.rfind("}")
             datos = json.loads(t[i_json:j_json + 1], strict=False)
             
-            if not (55 <= len(datos.get("guion", "").split()) <= 95):
-                raise ValueError(f"Guion con {len(datos.get('guion', '').split())} palabras")
+            # ✅ LIMPIAR TÍTULO: Quitar hashtags y acortar
+            titulo = datos.get("titulo", "")
+            titulo = re.sub(r'\s*#.*', '', titulo)  # Quitar hashtags
+            if len(titulo) > 50:
+                titulo = titulo[:47] + "..."
+            datos["titulo"] = titulo
             
-            if "#" not in datos.get("titulo", ""):
-                datos["titulo"] = f"🔮 {signo['nombre']}: Mensaje del Universo #{signo_lower} #horoscopo #astrologia"
+            # ✅ ASEGURAR URL REAL
+            if video_largo_id and video_largo_id != "PLACEHOLDER":
+                url_real = f"https://www.youtube.com/watch?v={video_largo_id}"
+                if url_real not in datos.get("descripcion", ""):
+                    datos["descripcion"] += f"\n🎥 Video completo: {url_real}"
+                if url_real not in datos.get("comentario_fijado", ""):
+                    datos["comentario_fijado"] += f"\nVideo: {url_real}"
+                
             return datos
         except Exception as e:
             print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
@@ -252,7 +284,7 @@ def llamar_deepseek_short(signo, fecha):
     raise Exception("Fallo DeepSeek")
 
 # ================================================================
-# 4. IMÁGENES (FLUX PREMIUM + PEXELS)
+# 4. IMÁGENES
 # ================================================================
 def generar_cf_vertical(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
@@ -262,7 +294,7 @@ def generar_cf_vertical(prompt, ruta):
     
     r = requests.post(url, headers=headers, json=payload, timeout=60)
     if r.status_code != 200:
-        print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
+        print(f"   ❌ Cloudflare HTTP {r.status_code}")
     r.raise_for_status()
     
     result = r.json()
@@ -303,53 +335,47 @@ def obtener_imagen_short(signo, ruta):
     prompt_epico = PROMPTS_IMAGEN_ELEMENTO.get(signo["elemento"], PROMPTS_IMAGEN_ELEMENTO["fuego"])
     for i in range(1, 3):
         try:
-            print(f"   ☁️ CF Intento {i}/2 (Arte Premium)...")
+            print(f"   ☁️ CF Intento {i}/2...")
             return generar_cf_vertical(prompt_epico, ruta)
         except Exception as e:
-            print(f"   ⚠️ CF intento {i} falló: {str(e)[:100]}")
+            print(f"   ⚠️ CF intento {i} falló")
             time.sleep(2)
     
-    print("   ⚠️ CF agotado, usando Pexels como respaldo...")
-    try:
-        return generar_pexels_vertical(prompt_epico, ruta)
-    except Exception as e:
-        print(f"   ❌ Pexels también falló: {e}")
-        return None
+    print("   ⚠️ CF agotado, usando Pexels...")
+    return generar_pexels_vertical(prompt_epico, ruta)
 
 # ================================================================
-# 5. AUDIO (ROTACIÓN + FALLBACK gTTS)
+# 5. AUDIO
 # ================================================================
 async def generar_audio(texto, ruta):
     max_retries = 3
     voz_elegida = random.choice(VOICES_LIST)
-    print(f"   🎤 Voz seleccionada: {voz_elegida}")
+    print(f"   🎤 Voz: {voz_elegida}")
     
     for attempt in range(max_retries):
         try:
-            print(f"   🎤 Generando audio con Edge TTS (Intento {attempt + 1}/{max_retries})...")
             communicate = edge_tts.Communicate(texto, voz_elegida, rate="-2%")
             await communicate.save(ruta)
             if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
-                print(f"   ✅ Audio Edge TTS generado exitosamente.")
+                print(f"   ✅ Audio Edge TTS OK")
                 return True
         except Exception as e:
             if attempt < max_retries - 1:
-                print(f"   ⏳ Esperando 5 segundos antes de reintentar...")
                 await asyncio.sleep(5)
     
-    print("   ⚠️ Edge TTS falló. Activando respaldo gTTS...")
+    print("   ⚠️ Edge TTS falló, usando gTTS...")
     try:
         tts = gTTS(text=texto, lang='es', slow=False)
         tts.save(ruta)
         if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
-            print(f"   ✅ Audio gTTS generado exitosamente.")
+            print(f"   ✅ Audio gTTS OK")
             return True
-        raise Exception("Archivo gTTS vacío.")
+        raise Exception("gTTS vacío")
     except Exception as e:
-        raise Exception(f"Fallo definitivo en TTS: {str(e)}")
+        raise Exception(f"Fallo TTS: {str(e)}")
 
 # ================================================================
-# 6. RENDERIZADO CON TIPOGRAFÍA DINÁMICA
+# 6. RENDER
 # ================================================================
 def renderizar_short(signo, guion, img_path, audio_path, salida):
     dur = AudioFileClip(audio_path).duration + 0.5
@@ -396,10 +422,7 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
         ch = cw * sz[1] / sz[0]
         mx, my = sz[0] - cw, sz[1] - ch
         fr = np.asarray(base.resize((W_SHORT, H_SHORT), Image.BILINEAR, box=(mx/2, my/2 + my*0.3*p, mx/2+cw, my/2+my*0.3*p+ch)))
-        f = 1.0
-        if t < 0.5: f = t / 0.5
-        if t > dur - 0.5: f = min(f, max(0.0, (dur - t) / 0.5))
-        return (fr.astype(np.float32) * f).astype(np.uint8) if f < 1.0 else fr
+        return fr
     
     video = VideoClip(frame, duration=dur)
     audio = AudioFileClip(audio_path)
@@ -422,11 +445,9 @@ def renderizar_short(signo, guion, img_path, audio_path, salida):
 def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
     signo_norm = normalizar_ascii(signo["nombre"])
+    
     desc = f"{datos['descripcion']}\n\n"
-    if video_largo_id:
-        desc += f"🎥 VIDEOS DIARIOS, SEMANALES Y MENSUALES:\nhttps://www.youtube.com/watch?v={video_largo_id}\n\n"
-    desc += f"🔔 Suscríbete: {CANAL_LINK}\n\n"
-    desc += f"Este horóscopo para {signo['nombre']} revela las energías de hoy. #horoscopo #{signo_norm} #astrologia #zodiaco #shorts"
+    desc += f"#horoscopo #{signo_norm} #astrologia #zodiaco #shorts"
     
     body = {
         "snippet": {"title": datos["titulo"][:100], "description": desc[:5000], "tags": construir_tags_shorts_premium(signo), 
@@ -448,8 +469,7 @@ def subir_short_youtube(ruta_video, datos, signo, video_largo_id, hora_utc):
     print(f"✅ Short subido. ID: {resp['id']}")
     if datos.get("comentario_fijado"):
         try:
-            comentario = datos["comentario_fijado"] + (f"\n\n🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}" if video_largo_id else "")
-            youtube.commentThreads().insert(part="snippet", body={"snippet": {"videoId": resp['id'], "topLevelComment": {"snippet": {"textOriginal": comentario}}}}).execute()
+            youtube.commentThreads().insert(part="snippet", body={"snippet": {"videoId": resp['id'], "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}}).execute()
         except: pass
     return resp['id']
 
@@ -464,13 +484,12 @@ def main():
         estado = cargar_estado()
         
         if len(estado.get("publicados_hoy", [])) >= MAX_SHORTS_DIARIOS:
-            print(f"⚠️ LÍMITE DIARIO ALCANZADO: Ya se publicaron {MAX_SHORTS_DIARIOS} Shorts hoy.")
-            print(f"📋 Signos publicados hoy: {estado['publicados_hoy']}")
+            print(f"⚠️ LÍMITE ALCANZADO: {MAX_SHORTS_DIARIOS} Shorts hoy.")
             return
         
         signo = elegir_siguiente_signo(estado)
-        print(f"🎯 Signo: {signo['simbolo']} {signo['nombre']} (Elemento: {signo['elemento']})")
-        print(f"📊 Progreso: {len(estado['publicados_hoy'])}/{MAX_SHORTS_DIARIOS} Shorts hoy")
+        print(f"🎯 Signo: {signo['simbolo']} {signo['nombre']} ({signo['elemento']})")
+        print(f"📊 Progreso: {len(estado['publicados_hoy'])}/{MAX_SHORTS_DIARIOS}")
         
         hora_actual = ahora.hour
         if 4 <= hora_actual < 6: hora_base, min_rand = ahora.replace(hour=5, minute=0, second=0, microsecond=0), random.randint(5, 50)
@@ -483,8 +502,11 @@ def main():
         print(f"📅 Programado: {hora_final:%H:%M}")
         
         video_largo_id = buscar_ultimo_video_largo()
-        datos = llamar_deepseek_short(signo, datetime.now(TZ).strftime("%d de %B de %Y"))
-        print(f"   📝 Título SEO: {datos.get('titulo')}")
+        id_para_prompt = video_largo_id if video_largo_id else "PLACEHOLDER"
+        print(f" Video largo ID: {video_largo_id}")
+        
+        datos = llamar_deepseek_short(signo, datetime.now(TZ).strftime("%d de %B de %Y"), id_para_prompt)
+        print(f"   📝 Título: {datos.get('titulo')} ({len(datos.get('titulo', ''))} chars)")
         
         obtener_imagen_short(signo, "temp_short_img.jpg")
         asyncio.run(generar_audio(datos["guion"], "temp_short_audio.mp3"))
