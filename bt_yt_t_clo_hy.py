@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ÉLITE x10 (CORREGIDA TAGS)
-Fix: Cálculo exacto de longitud de tags para la API de YouTube (sin contar comas), 
-     Títulos indican "12 Signos", Prompts 'Safe', Texto de miniatura 100% variable.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN EXPERTA CALENDARIO
+Fix: Calendario automático (semanal=lunes, mensual=día 1), Títulos 100% variables, SEO avanzado.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -34,20 +33,19 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS SEO PREMIUM (NIVEL VIDIQ x10 - CÁLCULO EXACTO)
+# 🏷️ MOTOR DE TAGS SEO AVANZADO (DINÁMICO POR MODO)
 # ================================================================
-TAGS_GENERALES_SIEMPRE = [
-    "horoscopo", "horoscopo diario", "astrologia", "zodiaco", "tu cielo hoy",
+TAGS_GENERALES = [
+    "horoscopo", "astrologia", "zodiaco", "tu cielo hoy", "mensaje del universo",
     "aries", "tauro", "geminis", "cancer", "leo", "virgo", "libra", "escorpio",
-    "sagitario", "capricornio", "acuario", "piscis", "mensaje del universo",
-    "energia del dia", "fase lunar", "crecimiento espiritual", "bienestar",
-    "lectura de tarot", "carta astral", "prediccion astral"
+    "sagitario", "capricornio", "acuario", "piscis", "energia del dia",
+    "crecimiento espiritual", "bienestar", "lectura de tarot", "carta astral"
 ]
 
 TAGS_POR_MODO = {
-    "daily": ["horoscopo de hoy", "horoscopo hoy", "prediccion de hoy", "energia de hoy", "mensaje de hoy", "horoscopo completo"],
-    "weekly": ["horoscopo semanal", "horoscopo de la semana", "semana astral", "prediccion semanal", "tendencias zodiacales"],
-    "monthly": ["horoscopo mensual", "horoscopo del mes", "prediccion mensual", "ciclo lunar", "luna llena", "luna nueva"]
+    "daily": ["horoscopo diario", "horoscopo de hoy", "prediccion de hoy", "energia de hoy", "mensaje de hoy", "horoscopo completo", "horoscopo hoy"],
+    "weekly": ["horoscopo semanal", "horoscopo de la semana", "semana astral", "prediccion semanal", "tendencias zodiacales", "horoscopo semanal completo"],
+    "monthly": ["horoscopo mensual", "horoscopo del mes", "prediccion mensual", "ciclo lunar", "luna llena", "luna nueva", "horoscopo mensual completo"]
 }
 
 HASHTAGS_YOUTUBE = "\n\n#Horoscopo #Astrologia #Zodiaco #TuCieloHoy #MensajeDelUniverso #HoroscopoDeHoy #EnergiaDelDia #SignosDelZodiaco"
@@ -61,36 +59,30 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     tags_finales = []
     total_chars = 0
     
-    todas_las_fuentes = list(TAGS_GENERALES_SIEMPRE) + list(TAGS_POR_MODO.get(modo, []))
+    todas_las_fuentes = list(TAGS_GENERALES) + list(TAGS_POR_MODO.get(modo, []))
     if isinstance(tags_dinamicos_ia, list):
         todas_las_fuentes.extend(tags_dinamicos_ia)
     
     for tag in todas_las_fuentes:
-        # 1. Normalizar y limpiar a fondo
         tag_limpio = normalizar_ascii(str(tag)).strip()
-        # SOLO permitir letras, números y espacios (elimina acentos y símbolos)
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
         tag_limpio = re.sub(r'\s+', ' ', tag_limpio).strip()
         
-        # 2. Validar longitud de cada tag (YouTube pide entre 2 y 30 caracteres)
         if 2 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
-            # ✅ CORRECCIÓN: YouTube cuenta la longitud de las cadenas, NO las comas.
-            # Usamos 480 como límite seguro (el máximo absoluto es 500).
             if total_chars + len(tag_limpio) <= 480:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio)
                 
     print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars}/480 caracteres")
-    print(f"   Tags enviados a YouTube: {', '.join(tags_finales)}")
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - VERSIÓN ÉLITE x10 (CORREGIDA)")
+print(" BT_YT_T_CLO_HY MASTER - EXPERTO CALENDARIO + SEO")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
 if not all([DEEPSEEK_API_KEY, PEXELS_API_KEY, CF_ACCOUNT_ID, CF_API_TOKEN, YT_TOKEN_STR]):
-    print("❌ ERROR: Faltan variables de entorno en los Secrets de GitHub.")
+    print("❌ ERROR: Faltan variables de entorno.")
     sys.exit(1)
 
 # ================================================================
@@ -124,55 +116,59 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS SEO PREMIUM VIRAL
+# 3. IA (DEEPSEEK) - PROMPTS EXPERTOS (TÍTULOS VARIABLES)
 # ================================================================
 PROMPT_DIARIO = """
-Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral (Nivel VidIQ x10). Tono: femenino, cálido, místico, URGENTE.
+Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral. Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
-REGLAS CRÍTICAS DE SEO Y RETENCIÓN (ANTI-REPETICIÓN EXTREMA):
-1. TÍTULO (Máx 70 chars, Alto CTR y 100% ÚNICO): DEBE dejar claro que es un horóscopo para los 12 SIGNOS. NO pongas un solo signo en el título principal.
-   - Estructuras: "🔮 HORÓSCOPO HOY: La [Palabra de Poder] para los 12 Signos | [Tránsito]", "⚠️ ALERTA ZODIACAL: Lo que el cosmos revela a los 12 Signos hoy | [Tránsito]", "✨ HORÓSCOPO COMPLETO: Un [Tema] inesperado espera a los 12 Signos | [Tránsito]", "💫 VERDAD OCULTA: El mensaje urgente que los 12 Signos necesitan HOY | [Tránsito]"
-   - Palabras de Poder: Revelación, Alerta, Secreto, Impactante, Verdad, Destino, Prohibido, Urgente, Sorpresa.
-   - Temas: Amor, Dinero, Karma, Suerte, Destino, Cambio.
-   - Tránsito: ej: "Luna en Cáncer", "Mercurio en Géminis", etc.
+REGLAS CRÍTICAS DE SEO (ANTI-REPETICIÓN):
 
-2. DESCRIPCIÓN (SEO Enriquecido x10): 3 párrafos. 
-   - P1: Gancho emocional mencionando "horóscopo diario para los 12 signos", "mensaje del universo" y la energía de hoy.
-   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) usando lenguaje natural y persuasivo.
-   - P3: Llamado a la acción fuerte para suscribirse y comentar su signo para decretar.
+1. TÍTULO (Máx 70 chars, ALTO CTR): Elige UNA de estas 5 estructuras DIFERENTES cada día:
+   - Opción A: "🔮 HORÓSCOPO HOY: La [Palabra] para los 12 Signos | [Tránsito]"
+   - Opción B: "⚠️ ALERTA ZODIACAL: Lo que el cosmos revela hoy | [Tránsito]"
+   - Opción C: "✨ HORÓSCOPO COMPLETO: Un [Tema] inesperado para los 12 Signos | [Tránsito]"
+   - Opción D: "💫 VERDAD OCULTA: El mensaje que los 12 Signos necesitan HOY | [Tránsito]"
+   - Opción E: "🌙 [Tránsito]: Tu energía [elemento] brilla en [tema] | Horóscopo"
+   
+   Palabras: Revelación, Secreto, Impactante, Urgente, Sorpresa, Destino
+   Temas: Amor, Dinero, Karma, Suerte, Cambio
+   Tránsito: ej: "Luna en Cáncer", "Mercurio en Géminis"
 
-3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..." y ser único.
+2. DESCRIPCIÓN (SEO Enriquecido - 3 párrafos ÚNICOS):
+   - P1: Gancho emocional específico para HOY mencionando la fecha y fase lunar
+   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) con palabras clave naturales
+   - P3: Llamado a la acción fuerte y personalizado
 
-4. IMÁGENES Y MINIATURA (ARTE DIGITAL PREMIUM Y VARIABLE): 
-   - visual_prompt: Debe ser una descripción de "Arte Digital Premium" (ej: "masterpiece, radiant cosmic energy, volumetric lighting, vibrant color grading, hyper-detailed, 8k, trending on ArtStation, no text").
-   - miniatura_prompt: Similar, enfocado en alta calidad visual y colores vibrantes.
-   - miniatura_texto: 2-3 palabras MAYÚSCULAS de ALTO IMPACTO y ÚNICAS para el día. ¡PROHIBIDO repetir siempre "VERDAD OCULTA"! Elige una diferente según el tema: "CAMBIO RADICAL", "DINERO INESPERADO", "ALERTA AMOR", "TU DESTINO", "SEÑAL URGENTE", "NUEVA ETAPA", "KARMA ACTIVO".
-   - miniatura_banner: 2-3 palabras que complementen: "PARA LOS 12 SIGNOS", "HORÓSCOPO DE HOY", "MENSAJE DEL UNIVERSO", "PREDICCIÓN ASTROLÓGICA".
+3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..."
+
+4. CAPÍTULOS: Títulos únicos y creativos para cada signo (NO repetir "Chispa de Valentía" siempre)
+
+5. MINIATURA: Prompt en inglés (fondo BRILLANTE, luminoso) y 2-3 palabras MAYÚSCULAS variables.
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 HORÓSCOPO HOY: La Revelación Impactante para los 12 Signos | Luna en Cáncer",
-  "descripcion": "...",
+  "titulo": "🔮 HORÓSCOPO HOY: La Revelación para los 12 Signos | Luna en Cáncer",
+  "descripcion": "Descubre el horóscopo diario para los 12 signos y el mensaje del universo que hoy llega con la energía de la Luna en Cáncer...",
   "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral", "horoscopo completo"],
-  "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios para decretar.",
-  "miniatura_prompt": "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k resolution, trending on ArtStation, no text, no watermark",
-  "miniatura_texto": "CAMBIO RADICAL",
+  "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios.",
+  "miniatura_prompt": "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k, trending on ArtStation, no text",
+  "miniatura_texto": "REVELACIÓN",
   "miniatura_banner": "PARA LOS 12 SIGNOS",
   "signos": [
-    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Chispa de Valentía", "guion": "Aries, hoy la energía...", "visual_prompt": "masterpiece, radiant cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, highly detailed, 8k resolution, cinematic composition, no text"}},
-    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Siembra de Abundancia", "guion": "Tauro, hoy la tierra...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, highly detailed, 8k, cinematic, no text"}},
-    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Comunicación Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky with beautiful stars, highly detailed, 8k, cinematic, no text"}},
-    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, 8k, no text"}},
-    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "masterpiece, radiant cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, highly detailed, 8k, no text"}},
-    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Detalle Perfecto", "guion": "Virgo, el orden...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, highly detailed, 8k, no text"}},
-    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Armonía Renovada", "guion": "Libra, el equilibrio...", "visual_prompt": "masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky with beautiful stars, highly detailed, 8k, no text"}},
-    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Poder Transformador", "guion": "Escorpio, tu intensidad...", "visual_prompt": "masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, 8k, no text"}},
-    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Aventura Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "masterpiece, radiant cosmic flames and golden embers, dramatic volumetric lighting, vibrant red and orange color grading, mystical fire energy, highly detailed, 8k, no text"}},
-    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Construcción Sólida", "guion": "Capricornio, tu disciplina...", "visual_prompt": "masterpiece, lush enchanted forest with radiant golden sunlight beams, vibrant emerald and gold color palette, magical glowing crystals, highly detailed, 8k, no text"}},
-    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Innovadora", "guion": "Acuario, tu originalidad...", "visual_prompt": "masterpiece, swirling ethereal aurora borealis with electric cyan and silver, cosmic wind energy, vibrant sky with beautiful stars, highly detailed, 8k, no text"}},
-    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Sueño Profético", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "masterpiece, deep mystical ocean with bioluminescent glowing creatures, vibrant turquoise and deep purple color grading, magical underwater light rays, 8k, no text"}}
+    {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Fuego Interior", "guion": "Aries, hoy la energía...", "visual_prompt": "masterpiece, radiant cosmic flames, volumetric lighting, 8k"}},
+    {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Abundancia Terrenal", "guion": "Tauro, hoy la tierra...", "visual_prompt": "masterpiece, enchanted forest, golden sunlight, 8k"}},
+    {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Mente Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "masterpiece, aurora borealis, electric cyan, 8k"}},
+    {{"nombre": "Cáncer", "simbolo": "", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "masterpiece, mystical ocean, bioluminescent, 8k"}},
+    {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "masterpiece, golden sunset, vibrant, 8k"}},
+    {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Perfección Práctica", "guion": "Virgo, el orden...", "visual_prompt": "masterpiece, morning dew, emerald, 8k"}},
+    {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Equilibrio Divino", "guion": "Libra, el equilibrio...", "visual_prompt": "masterpiece, pink sunset clouds, 8k"}},
+    {{"nombre": "Escorpio", "simbolo": "♏", "titulo_cap": "Transformación Profunda", "guion": "Escorpio, tu intensidad...", "visual_prompt": "masterpiece, deep ocean, mystical, 8k"}},
+    {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Libertad Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "masterpiece, mountain peak, sunrise, 8k"}},
+    {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Cimientos Sólidos", "guion": "Capricornio, tu disciplina...", "visual_prompt": "masterpiece, stone architecture, golden, 8k"}},
+    {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Futurista", "guion": "Acuario, tu originalidad...", "visual_prompt": "masterpiece, aurora borealis, electric, 8k"}},
+    {{"nombre": "Piscis", "simbolo": "", "titulo_cap": "Sueños Proféticos", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "masterpiece, underwater coral, vibrant, 8k"}}
   ]
 }}
 """
@@ -196,18 +192,14 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
             datos = parsear_json(r.json()["choices"][0]["message"]["content"].strip())
             if len(datos.get("signos", [])) != 12:
                 raise ValueError(f"La IA solo generó {len(datos.get('signos', []))} signos.")
-            nombres_generados = [s["nombre"].lower() for s in datos["signos"]]
-            nombres_esperados = ["aries", "tauro", "géminis", "cáncer", "leo", "virgo", "libra", "escorpio", "sagitario", "capricornio", "acuario", "piscis"]
-            if set(nombres_generados) != set(nombres_esperados):
-                raise ValueError("La IA repitió signos o faltan algunos.")
             return datos
         except Exception as e:
-            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
+            print(f"️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(3)
-    raise Exception("Fallo DeepSeek tras 3 intentos")
+    raise Exception("Fallo DeepSeek")
 
 # ================================================================
-# 4. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS INMEDIATO)
+# 4. IMÁGENES (2 INTENTOS CLOUDFLARE → PEXELS)
 # ================================================================
 def generar_cf(prompt, ruta):
     url = f"https://api.cloudflare.com/client/v4/accounts/{CF_ACCOUNT_ID}/ai/run/@cf/black-forest-labs/flux-1-schnell"
@@ -218,12 +210,12 @@ def generar_cf(prompt, ruta):
     
     r = requests.post(url, headers=headers, json=payload, timeout=60)
     if r.status_code != 200:
-        print(f"   ❌ Cloudflare HTTP {r.status_code}: {r.text[:200]}")
+        print(f"   ❌ Cloudflare HTTP {r.status_code}")
     r.raise_for_status()
     
     result = r.json()
     if "result" not in result or "image" not in result["result"]:
-        raise ValueError(f"Respuesta sin imagen: {str(result)[:200]}")
+        raise ValueError("Sin imagen")
         
     with open(ruta, "wb") as f:
         f.write(base64.b64decode(result["result"]["image"]))
@@ -249,51 +241,47 @@ def generar_pexels(query, ruta):
 def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
     for i in range(1, 3):
         try:
-            print(f"   ☁️ CF Intento {i}/2 (Arte Premium)...")
+            print(f"   ☁️ CF Intento {i}/2...")
             return generar_cf(prompt, ruta)
         except Exception as e:
-            print(f"   ⚠️ CF intento {i} falló: {str(e)[:100]}")
+            print(f"   ⚠️ CF intento {i} falló")
             time.sleep(2)
     
-    print("   ⚠️ CF agotado, usando Pexels como respaldo...")
+    print("   ⚠️ CF agotado, usando Pexels...")
     try:
         query = prompt + " bright vibrant mystical" if es_miniatura else prompt + " vivid cinematic"
         return generar_pexels(query, ruta)
     except Exception as e:
-        print(f"   ❌ Pexels también falló: {e}")
+        print(f"   ❌ Pexels falló: {e}")
         return None
 
 # ================================================================
-# 5. AUDIO (CON REINTENTOS ANTI-403 + FALLBACK gTTS) Y MINIATURAS
+# 5. AUDIO (REINTENTOS + FALLBACK gTTS)
 # ================================================================
 async def generar_audio(texto, ruta):
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            print(f"   🎤 Generando audio con Edge TTS (Intento {attempt + 1}/{max_retries})...")
+            print(f"   🎤 Edge TTS (Intento {attempt + 1}/{max_retries})...")
             communicate = edge_tts.Communicate(texto, VOZ_CANAL, rate="-4%")
             await communicate.save(ruta)
             if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
-                print(f"   ✅ Audio Edge TTS generado exitosamente.")
+                print(f"   ✅ Audio OK")
                 return True
         except Exception as e:
-            error_msg = str(e)
-            print(f"   ⚠️ Error en Edge TTS (Intento {attempt + 1}): {error_msg[:150]}")
             if attempt < max_retries - 1:
-                print(f"   ⏳ Esperando 5 segundos antes de reintentar (posible bloqueo temporal de Microsoft)...")
                 await asyncio.sleep(5)
     
-    print("   ⚠️ Edge TTS falló tras 3 intentos. Activando respaldo gTTS (Google)...")
+    print("   ⚠️ Edge TTS falló, usando gTTS...")
     try:
         tts = gTTS(text=texto, lang='es', slow=False)
         tts.save(ruta)
         if os.path.exists(ruta) and os.path.getsize(ruta) > 500:
-            print(f"   ✅ Audio gTTS generado exitosamente como respaldo.")
+            print(f"   ✅ Audio gTTS OK")
             return True
-        else:
-            raise Exception("El archivo gTTS generado está vacío.")
+        raise Exception("gTTS vacío")
     except Exception as e:
-        raise Exception(f"Fallo definitivo en TTS (Edge y gTTS). Último error: {str(e)}")
+        raise Exception(f"Fallo TTS: {str(e)}")
 
 def render_texto_gradiente_8k(texto, font_path, size):
     font = ImageFont.truetype(font_path, size)
@@ -352,10 +340,10 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         img.paste(bloque1, (x1, y1), bloque1)
         img.paste(bloque2, (x2, y2), bloque2)
         img.convert("RGB").save(salida, "JPEG", quality=95)
-        print(f"✅ Miniatura 8K Brillante generada: {salida}")
+        print(f"✅ Miniatura 8K generada")
         return True
     except Exception as e:
-        print(f"⚠️ Error en miniatura 8K: {e}")
+        print(f"⚠️ Error miniatura: {e}")
         return False
 
 # ================================================================
@@ -444,12 +432,12 @@ def renderizar_video(signos_data, salida):
             if bg.duration < t_total:
                 bg = concatenate_audioclips([bg] * (int(t_total / bg.duration) + 1))
             clips_audio.append(bg.subclip(0, t_total).volumex(0.08).audio_fadein(3).audio_fadeout(3))
-            print(f"🎵 Música de fondo aplicada (8%): {musica_elegida}")
+            print(f"🎵 Música: {musica_elegida}")
         except Exception as e:
-            print(f"⚠️ Error al cargar música de fondo: {e}")
+            print(f"⚠️ Error música: {e}")
 
     video = video.set_audio(CompositeAudioClip(clips_audio))
-    print("🎬 Renderizando con Ken Burns y Viñetas...")
+    print(" Renderizando...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
     return salida
 
@@ -480,7 +468,7 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         caps.append(f"{mins:02d}:{secs:02d} {s['simbolo']} {s['nombre']}: {s['titulo_cap']}")
         tiempo_acumulado += duracion_real + 0.5
         
-    desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete para más mensajes del universo: {CANAL_LINK}"
+    desc = f"{datos['descripcion']}\n\n⏰ CAPÍTULOS:\n" + "\n".join(caps) + f"\n\n🔔 Suscríbete: {CANAL_LINK}"
     desc += HASHTAGS_YOUTUBE
     
     tags_finales = construir_tags_finales(datos.get("tags", []), modo)
@@ -498,10 +486,9 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         try:
             st, resp = req.next_chunk()
             if st: print(f"   ⬆️ {int(st.progress() * 100)}%")
-        except (HttpError, ssl.SSLError, ConnectionError, socket.timeout, OSError) as e:
+        except Exception as e:
             if reintentos < 8:
                 reintentos += 1
-                print(f"⚠️ Reintentando subida ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
             
@@ -517,21 +504,35 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
             youtube.commentThreads().insert(part="snippet", body={
                 "snippet": {"videoId": video_id, "topLevelComment": {"snippet": {"textOriginal": datos["comentario_fijado"]}}}
             }).execute()
-            print("✅ Comentario fijado publicado.")
+            print("✅ Comentario fijado")
         except HttpError as e:
-            print(f"⚠️ Error comentario: Debes regenerar tu token incluyendo 'youtube.force-ssl'")
+            print(f"⚠️ Error comentario")
             
     return video_id
 
 # ================================================================
-# 8. MAIN
+# 8. MAIN (CON CALENDARIO AUTOMÁTICO)
 # ================================================================
 def main():
     try:
-        tipo = os.getenv("TIPO_HOROSCOPO", "daily")
         ahora = datetime.now(TZ)
-        print(f"🤖 Modo detectado: {tipo.upper()}")
+        dia_semana = ahora.weekday()  # 0=Lunes, 6=Domingo
+        dia_mes = ahora.day
         
+        # ✅ CALENDARIO AUTOMÁTICO INTELIGENTE
+        if dia_mes == 1:
+            tipo = "monthly"
+            print(f"📅 Día 1 del mes detectado → Horóscopo MENSUAL")
+        elif dia_semana == 0:  # Lunes
+            tipo = "weekly"
+            print(f"📅 Lunes detectado → Horóscopo SEMANAL")
+        else:
+            tipo = "daily"
+            print(f"📅 Día normal → Horóscopo DIARIO")
+        
+        print(f"🤖 Modo: {tipo.upper()}")
+        
+        # Programación inteligente
         if tipo == "monthly":
             hora_final = ahora.replace(hour=12, minute=random.randint(0, 10), second=0, microsecond=0)
             if ahora >= hora_final: hora_final += timedelta(days=1)
@@ -549,33 +550,28 @@ def main():
             hora_final = hoy_inicio + timedelta(minutes=minutos_a_sumar)
 
         hora_utc = hora_final.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        print(f"🎯 Programando para: {hora_final:%d-%m-%Y a las %H:%M} (CDMX)")
+        print(f"🎯 Programado: {hora_final:%d-%m-%Y %H:%M} (CDMX)")
         
         fecha_hoy = datetime.now(TZ).strftime("%d de %B de %Y")
         fase_lunar = "Creciente"
         
-        print(f"🧠 1. Generando contenido SEO Premium con DeepSeek (modo {tipo})...")
+        print(f"🧠 1. Generando contenido SEO con DeepSeek...")
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
         
         if titulo_ya_publicado(datos["titulo"]):
-            print("⚠️ Título repetido detectado. Solicitando variación...")
+            print("️ Título repetido. Añadiendo variación...")
             datos["titulo"] = f"{datos['titulo']} (Edición Especial)"
             
-        print("🎨 2. Generando activos (Imágenes y Audio)...")
+        print("🎨 2. Generando activos...")
         for i, signo in enumerate(datos["signos"]):
             print(f"   Procesando {signo['nombre']}...")
-            obtener_imagen_segura(signo.get("visual_prompt", "masterpiece, mystical galaxy, volumetric lighting, 8k"), f"temp_signo_{i}.jpg")
+            obtener_imagen_segura(signo.get("visual_prompt", "masterpiece, mystical galaxy, 8k"), f"temp_signo_{i}.jpg")
             guion_con_nombre = f"{signo['nombre']}. {signo['guion']}"
             asyncio.run(generar_audio(guion_con_nombre, f"temp_audio_{i}.mp3"))
             
-        print("🖼️ 3. Creando miniatura 8K Brillante...")
-        obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
-        
-        texto_miniatura = datos.get("miniatura_texto", "MENSAJE URGENTE")
-        banner_miniatura = datos.get("miniatura_banner", "PARA LOS 12 SIGNOS")
-        print(f"   📝 Texto de miniatura: '{texto_miniatura}' | Banner: '{banner_miniatura}'")
-        
-        crear_miniatura_8k_elite("temp_bg_thumb.jpg", texto_miniatura, banner_miniatura, "miniatura.jpg")
+        print("🖼️ 3. Creando miniatura 8K...")
+        obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, radiant cosmic energy, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
+        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "REVELACIÓN"), datos.get("miniatura_banner", "PARA LOS 12 SIGNOS"), "miniatura.jpg")
         
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
@@ -583,7 +579,7 @@ def main():
         print("📤 5. Subiendo a YouTube...")
         video_id = subir_a_youtube("video_final.mp4", "miniatura.jpg", datos, hora_utc, tipo)
             
-        print(f"✨ ¡PROCESO COMPLETADO! Video programado para {hora_final:%H:%M} (CDMX)")
+        print(f"✨ ¡COMPLETADO! Video programado para {hora_final:%H:%M} (CDMX)")
         guardar_titulo(datos["titulo"])
         
         for f in os.listdir():
