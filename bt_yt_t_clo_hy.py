@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN EXPERTA 100%
-Fix: Miniaturas con 35+ frases variables (anti-repetición), Calendario automático, SEO avanzado.
+Fix: Tags blindados (límite 450 chars), Calendario automático, Miniaturas variables.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -33,7 +33,7 @@ TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
 
 # ================================================================
-# 🏷️ MOTOR DE TAGS SEO AVANZADO (DINÁMICO POR MODO)
+# 🏷️ MOTOR DE TAGS SEO AVANZADO (BLINDADO CONTRA INVALIDTAGS)
 # ================================================================
 TAGS_GENERALES = [
     "horoscopo", "astrologia", "zodiaco", "tu cielo hoy", "mensaje del universo",
@@ -64,20 +64,25 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
         todas_las_fuentes.extend(tags_dinamicos_ia)
     
     for tag in todas_las_fuentes:
+        # 1. Normalizar y limpiar a fondo
         tag_limpio = normalizar_ascii(str(tag)).strip()
+        # SOLO permitir letras minúsculas, números y espacios (elimina acentos, ñ, y símbolos)
         tag_limpio = re.sub(r'[^a-z0-9\s]', '', tag_limpio)
         tag_limpio = re.sub(r'\s+', ' ', tag_limpio).strip()
         
+        # 2. Validar longitud de cada tag (YouTube pide entre 2 y 30 caracteres)
         if 2 <= len(tag_limpio) <= 30 and tag_limpio not in tags_finales:
-            if total_chars + len(tag_limpio) <= 480:
+            # ✅ YouTube limita la suma total a 500 caracteres. Usamos 450 para margen de seguridad ABSOLUTO.
+            if total_chars + len(tag_limpio) <= 450:
                 tags_finales.append(tag_limpio)
                 total_chars += len(tag_limpio)
                 
-    print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars}/480 caracteres")
+    print(f"🏷️ Tags finales: {len(tags_finales)} tags, {total_chars}/450 caracteres")
+    print(f"   Tags enviados a YouTube: {', '.join(tags_finales)}")
     return tags_finales
 
 print("=" * 70)
-print("🔮 BT_YT_T_CLO_HY MASTER - EXPERTO 100% (MINIATURAS VARIABLES)")
+print("🔮 BT_YT_T_CLO_HY MASTER - EXPERTA 100% (TAGS BLINDADOS)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -493,6 +498,7 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
         except Exception as e:
             if reintentos < 8:
                 reintentos += 1
+                print(f"⚠️ Reintentando subida ({reintentos}/8)...")
                 time.sleep(2 ** reintentos)
             else: raise e
             
@@ -576,7 +582,6 @@ def main():
         print("🖼️ 3. Creando miniatura 8K...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, radiant cosmic energy, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
         
-        # ✅ AQUÍ SE USA EL TEXTO VARIABLE QUE LA IA ELIGIÓ DE LA LISTA DE 35+ OPCIONES
         texto_miniatura = datos.get("miniatura_texto", "CAMBIO RADICAL")
         banner_miniatura = datos.get("miniatura_banner", "PARA LOS 12 SIGNOS")
         print(f"   📝 Texto miniatura elegido: '{texto_miniatura}' | Banner: '{banner_miniatura}'")
