@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN EXPERTA CALENDARIO
-Fix: Calendario automático (semanal=lunes, mensual=día 1), Títulos 100% variables, SEO avanzado.
+BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN EXPERTA 100%
+Fix: Miniaturas con 35+ frases variables (anti-repetición), Calendario automático, SEO avanzado.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata
 from datetime import datetime, timedelta, timezone
@@ -77,7 +77,7 @@ def construir_tags_finales(tags_dinamicos_ia, modo="daily"):
     return tags_finales
 
 print("=" * 70)
-print(" BT_YT_T_CLO_HY MASTER - EXPERTO CALENDARIO + SEO")
+print("🔮 BT_YT_T_CLO_HY MASTER - EXPERTO 100% (MINIATURAS VARIABLES)")
 print(f"📅 {datetime.now(TZ):%Y-%m-%d %H:%M} (CDMX)")
 print("=" * 70)
 
@@ -116,14 +116,14 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 # ================================================================
-# 3. IA (DEEPSEEK) - PROMPTS EXPERTOS (TÍTULOS VARIABLES)
+# 3. IA (DEEPSEEK) - PROMPTS EXPERTOS (MINIATURAS 100% VARIABLES)
 # ================================================================
 PROMPT_DIARIO = """
 Eres la astróloga más prestigiosa de YouTube y EXPERTA EN SEO Viral. Tono: femenino, cálido, místico, URGENTE.
 Fecha: {fecha}. Fase Lunar: {fase_lunar}.
 Genera horóscopo DIARIO para los 12 signos.
 
-REGLAS CRÍTICAS DE SEO (ANTI-REPETICIÓN):
+REGLAS CRÍTICAS DE SEO (ANTI-REPETICIÓN EXTREMA):
 
 1. TÍTULO (Máx 70 chars, ALTO CTR): Elige UNA de estas 5 estructuras DIFERENTES cada día:
    - Opción A: "🔮 HORÓSCOPO HOY: La [Palabra] para los 12 Signos | [Tránsito]"
@@ -131,36 +131,39 @@ REGLAS CRÍTICAS DE SEO (ANTI-REPETICIÓN):
    - Opción C: "✨ HORÓSCOPO COMPLETO: Un [Tema] inesperado para los 12 Signos | [Tránsito]"
    - Opción D: "💫 VERDAD OCULTA: El mensaje que los 12 Signos necesitan HOY | [Tránsito]"
    - Opción E: "🌙 [Tránsito]: Tu energía [elemento] brilla en [tema] | Horóscopo"
-   
-   Palabras: Revelación, Secreto, Impactante, Urgente, Sorpresa, Destino
-   Temas: Amor, Dinero, Karma, Suerte, Cambio
-   Tránsito: ej: "Luna en Cáncer", "Mercurio en Géminis"
+   (Palabras: Revelación, Secreto, Impactante, Urgente, Sorpresa, Destino. Temas: Amor, Dinero, Karma, Suerte, Cambio)
 
-2. DESCRIPCIÓN (SEO Enriquecido - 3 párrafos ÚNICOS):
-   - P1: Gancho emocional específico para HOY mencionando la fecha y fase lunar
-   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) con palabras clave naturales
-   - P3: Llamado a la acción fuerte y personalizado
+2. MINIATURA (VARIABILIDAD TOTAL - OBLIGATORIO):
+   Debes elegir UNA de estas frases de 1 a 3 palabras para el texto principal de la miniatura. ¡PROHIBIDO usar siempre "REVELACIÓN"! Elige la que mejor encaje con el tema del video de hoy:
+   - Dinero/Éxito: "ABUNDANCIA YA", "DINERO LLEGA", "SUERTE FINANCIERA", "ÉXITO SEGURO", "RECOMPENSA DIVINA"
+   - Amor/Relaciones: "AMOR LLEGA", "ALMA GEMELA", "PASIÓN TOTAL", "CONEXIÓN DIVINA", "SANACIÓN TOTAL"
+   - Advertencia/Urgencia: "ALERTA ZODIACAL", "CUIDADO HOY", "NO LO IGNORES", "DECISIÓN FINAL", "KARMA ACTIVO"
+   - Destino/Cambio: "CAMBIO RADICAL", "NUEVA ETAPA", "TU DESTINO", "VERDAD OCULTA", "SECRETO REVELADO", "GOLPE DE SUERTE", "MILAGRO INMINENTE", "ENERGÍA PURA", "PODER TOTAL", "LIBERTAD REAL", "MAGIA PURA", "LUZ DIVINA", "FUEGO INTERIOR", "FLUIR HOY", "ROMPE MOLDES", "SALTO CUÁNTICO", "CICLO CERRADO", "NUEVO COMIENZO", "BLOQUEO ROTO", "INTUICIÓN AL MÁX"
+   Banner (elige uno): "PARA LOS 12 SIGNOS", "HORÓSCOPO DE HOY", "MENSAJE DEL UNIVERSO", "PREDICCIÓN ASTROLÓGICA", "TU GUÍA ASTRO"
 
-3. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..."
+3. DESCRIPCIÓN (SEO Enriquecido - 3 párrafos ÚNICOS):
+   - P1: Gancho emocional específico para HOY mencionando la fecha y fase lunar.
+   - P2: Lista de lo que encontrarán (amor, dinero, salud, mantra) con palabras clave naturales.
+   - P3: Llamado a la acción fuerte y personalizado.
 
-4. CAPÍTULOS: Títulos únicos y creativos para cada signo (NO repetir "Chispa de Valentía" siempre)
+4. GUION: 90-110 palabras por signo. DEBE comenzar con: "[Signo], hoy la energía..."
 
-5. MINIATURA: Prompt en inglés (fondo BRILLANTE, luminoso) y 2-3 palabras MAYÚSCULAS variables.
+5. CAPÍTULOS: Títulos únicos y creativos para cada signo (NO repetir siempre los mismos).
 
 Responde SOLO JSON:
 {{
-  "titulo": "🔮 HORÓSCOPO HOY: La Revelación para los 12 Signos | Luna en Cáncer",
-  "descripcion": "Descubre el horóscopo diario para los 12 signos y el mensaje del universo que hoy llega con la energía de la Luna en Cáncer...",
-  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral", "horoscopo completo"],
-  "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo en los comentarios.",
+  "titulo": "🔮 HORÓSCOPO HOY: Un Cambio Radical para los 12 Signos | Luna en Cáncer",
+  "descripcion": "Descubre el horóscopo diario...",
+  "tags": ["horoscopo diario", "mensaje del universo", "prediccion astral"],
+  "comentario_fijado": "✨ ¿Sientes esta energía? Escribe 'HECHO ESTÁ' y tu signo.",
   "miniatura_prompt": "masterpiece, radiant cosmic energy, volumetric lighting, hyper-detailed, 8k, trending on ArtStation, no text",
-  "miniatura_texto": "REVELACIÓN",
+  "miniatura_texto": "CAMBIO RADICAL",
   "miniatura_banner": "PARA LOS 12 SIGNOS",
   "signos": [
     {{"nombre": "Aries", "simbolo": "♈", "titulo_cap": "Fuego Interior", "guion": "Aries, hoy la energía...", "visual_prompt": "masterpiece, radiant cosmic flames, volumetric lighting, 8k"}},
     {{"nombre": "Tauro", "simbolo": "♉", "titulo_cap": "Abundancia Terrenal", "guion": "Tauro, hoy la tierra...", "visual_prompt": "masterpiece, enchanted forest, golden sunlight, 8k"}},
     {{"nombre": "Géminis", "simbolo": "♊", "titulo_cap": "Mente Estelar", "guion": "Géminis, tu mente...", "visual_prompt": "masterpiece, aurora borealis, electric cyan, 8k"}},
-    {{"nombre": "Cáncer", "simbolo": "", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "masterpiece, mystical ocean, bioluminescent, 8k"}},
+    {{"nombre": "Cáncer", "simbolo": "♋", "titulo_cap": "Marea Emocional", "guion": "Cáncer, tu intuición...", "visual_prompt": "masterpiece, mystical ocean, bioluminescent, 8k"}},
     {{"nombre": "Leo", "simbolo": "♌", "titulo_cap": "Brillo Real", "guion": "Leo, tu carisma...", "visual_prompt": "masterpiece, golden sunset, vibrant, 8k"}},
     {{"nombre": "Virgo", "simbolo": "♍", "titulo_cap": "Perfección Práctica", "guion": "Virgo, el orden...", "visual_prompt": "masterpiece, morning dew, emerald, 8k"}},
     {{"nombre": "Libra", "simbolo": "♎", "titulo_cap": "Equilibrio Divino", "guion": "Libra, el equilibrio...", "visual_prompt": "masterpiece, pink sunset clouds, 8k"}},
@@ -168,7 +171,7 @@ Responde SOLO JSON:
     {{"nombre": "Sagitario", "simbolo": "♐", "titulo_cap": "Libertad Cósmica", "guion": "Sagitario, tu libertad...", "visual_prompt": "masterpiece, mountain peak, sunrise, 8k"}},
     {{"nombre": "Capricornio", "simbolo": "♑", "titulo_cap": "Cimientos Sólidos", "guion": "Capricornio, tu disciplina...", "visual_prompt": "masterpiece, stone architecture, golden, 8k"}},
     {{"nombre": "Acuario", "simbolo": "♒", "titulo_cap": "Visión Futurista", "guion": "Acuario, tu originalidad...", "visual_prompt": "masterpiece, aurora borealis, electric, 8k"}},
-    {{"nombre": "Piscis", "simbolo": "", "titulo_cap": "Sueños Proféticos", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "masterpiece, underwater coral, vibrant, 8k"}}
+    {{"nombre": "Piscis", "simbolo": "♓", "titulo_cap": "Sueños Proféticos", "guion": "Piscis, tu sensibilidad...", "visual_prompt": "masterpiece, underwater coral, vibrant, 8k"}}
   ]
 }}
 """
@@ -194,7 +197,7 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
                 raise ValueError(f"La IA solo generó {len(datos.get('signos', []))} signos.")
             return datos
         except Exception as e:
-            print(f"️ DeepSeek intento {i+1} falló: {e}")
+            print(f"⚠️ DeepSeek intento {i+1} falló: {e}")
             time.sleep(3)
     raise Exception("Fallo DeepSeek")
 
@@ -317,9 +320,10 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         img = img.convert("RGBA")
         fuente = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
         
+        # ✅ SEGURIDAD: Limitar a máximo 3 palabras para que quepa bien
         palabras = texto_principal.upper().split()
-        if len(palabras) > 4:
-            texto_principal = " ".join(palabras[:4])
+        if len(palabras) > 3:
+            texto_principal = " ".join(palabras[:3])
         
         size = 130
         while size > 60:
@@ -340,7 +344,7 @@ def crear_miniatura_8k_elite(img_path, texto_principal, texto_banner, salida):
         img.paste(bloque1, (x1, y1), bloque1)
         img.paste(bloque2, (x2, y2), bloque2)
         img.convert("RGB").save(salida, "JPEG", quality=95)
-        print(f"✅ Miniatura 8K generada")
+        print(f"✅ Miniatura 8K generada con texto: '{texto_principal}'")
         return True
     except Exception as e:
         print(f"⚠️ Error miniatura: {e}")
@@ -437,7 +441,7 @@ def renderizar_video(signos_data, salida):
             print(f"⚠️ Error música: {e}")
 
     video = video.set_audio(CompositeAudioClip(clips_audio))
-    print(" Renderizando...")
+    print("🎬 Renderizando...")
     video.write_videofile(salida, fps=FPS, codec="libx264", audio_codec="aac", threads=4, preset="ultrafast", logger=None)
     return salida
 
@@ -559,7 +563,7 @@ def main():
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
         
         if titulo_ya_publicado(datos["titulo"]):
-            print("️ Título repetido. Añadiendo variación...")
+            print("⚠️ Título repetido. Añadiendo variación...")
             datos["titulo"] = f"{datos['titulo']} (Edición Especial)"
             
         print("🎨 2. Generando activos...")
@@ -571,7 +575,13 @@ def main():
             
         print("🖼️ 3. Creando miniatura 8K...")
         obtener_imagen_segura(datos.get("miniatura_prompt", "masterpiece, radiant cosmic energy, 8k"), "temp_bg_thumb.jpg", es_miniatura=True)
-        crear_miniatura_8k_elite("temp_bg_thumb.jpg", datos.get("miniatura_texto", "REVELACIÓN"), datos.get("miniatura_banner", "PARA LOS 12 SIGNOS"), "miniatura.jpg")
+        
+        # ✅ AQUÍ SE USA EL TEXTO VARIABLE QUE LA IA ELIGIÓ DE LA LISTA DE 35+ OPCIONES
+        texto_miniatura = datos.get("miniatura_texto", "CAMBIO RADICAL")
+        banner_miniatura = datos.get("miniatura_banner", "PARA LOS 12 SIGNOS")
+        print(f"   📝 Texto miniatura elegido: '{texto_miniatura}' | Banner: '{banner_miniatura}'")
+        
+        crear_miniatura_8k_elite("temp_bg_thumb.jpg", texto_miniatura, banner_miniatura, "miniatura.jpg")
         
         print("🎬 4. Renderizando video...")
         renderizar_video(datos["signos"], "video_final.mp4")
