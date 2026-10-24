@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_SHORTS_CLO_HY - Bot Shorts Horóscopo (Tu Cielo Hoy) - VERSIÓN PREMIUM 30 SEGUNDOS
-Fix: Duración 30-35s (75-95 palabras), Títulos estilo VidIQ 80+, Bug de repetición SOLUCIONADO.
+Fix: Duración 30-35s (75-95 palabras), Títulos estilo VidIQ 80+, Bug de repetición SOLUCIONADO, KeyError arreglado.
 """
 import asyncio, base64, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -43,9 +43,9 @@ W_SHORT, H_SHORT, FPS = 1080, 1920, 24
 SIGNOS_COLA = [
     {"nombre": "Aries", "simbolo": "♈", "elemento": "fuego"},
     {"nombre": "Tauro", "simbolo": "♉", "elemento": "tierra"},
-    {"nombre": "Géminis", "simbolo": "", "elemento": "aire"},
+    {"nombre": "Géminis", "simbolo": "♊", "elemento": "aire"},
     {"nombre": "Cáncer", "simbolo": "♋", "elemento": "agua"},
-    {"nombre": "Leo", "simbolo": "", "elemento": "fuego"},
+    {"nombre": "Leo", "simbolo": "♌", "elemento": "fuego"},
     {"nombre": "Virgo", "simbolo": "♍", "elemento": "tierra"},
     {"nombre": "Libra", "simbolo": "♎", "elemento": "aire"},
     {"nombre": "Escorpio", "simbolo": "♏", "elemento": "agua"},
@@ -108,7 +108,7 @@ def construir_tags_shorts_premium(signo):
                 unique_tags.append(clean_tag)
                 total_chars += len(clean_tag) + 1
                 
-    print(f"   ️ Tags generados: {len(unique_tags)} tags, {total_chars}/480 caracteres")
+    print(f"   🏷️ Tags generados: {len(unique_tags)} tags, {total_chars}/480 caracteres")
     return unique_tags
 
 print("=" * 70)
@@ -162,16 +162,13 @@ def elegir_siguiente_signo(estado):
     indice = estado.get("indice", 0)
     publicados_hoy = estado.get("publicados_hoy", [])
     
-    # Si ya se publicaron los 12, reiniciar
     if len(publicados_hoy) >= 12:
         print("🔄 Ciclo de 12 signos completado. Reiniciando...")
         indice = 0
         publicados_hoy = []
     
-    # Obtener el signo en la posición actual del índice
     signo = SIGNOS_COLA[indice % 12]
     
-    # Si este signo YA fue publicado hoy, buscar el siguiente disponible
     if signo["nombre"] in publicados_hoy:
         print(f"⚠️ {signo['nombre']} ya fue publicado. Buscando siguiente disponible...")
         for i in range(1, 12):
@@ -182,10 +179,8 @@ def elegir_siguiente_signo(estado):
                 print(f"✅ Signo seleccionado: {signo['nombre']} (índice {indice})")
                 break
     
-    # Actualizar el índice para la próxima ejecución
     estado["indice"] = (indice + 1) % 12
     
-    # Agregar a publicados si no está
     if signo["nombre"] not in publicados_hoy:
         publicados_hoy.append(signo["nombre"])
     estado["publicados_hoy"] = publicados_hoy
@@ -215,7 +210,7 @@ def buscar_ultimo_video_largo():
     except:
         return None
 
-# ✅ TÍTULOS PREMIUM ESTILO VIDIQ (80+ PUNTOS) - BASADOS EN LAS SUGERENCIAS REALES
+# ✅ CORREGIDO: Llaves escapadas {{}} para evitar KeyError en .format()
 PROMPT_SHORT_SEO = """
 Eres EXPERTA EN SEO Viral para YouTube Shorts (Nivel VidIQ 80+). Tono: femenino, cálido, místico, PERSUASIVO.
 Fecha: {fecha}. Signo: {signo} ({simbolo}). Elemento: {elemento}.
@@ -233,11 +228,11 @@ REGLAS OBLIGATORIAS PARA TÍTULOS PREMIUM:
    - "¿Eres Capricornio? Mira tu dinero HOY 💰" (80 pts)
    
    ESTRUCTURAS QUE FUNCIONAN:
-   - "{signo}: La señal que esperabas para {tema} {emoji}"
-   - "¡Atención {signo}! {Beneficio} activado {emoji}"
-   - "¿Qué le espera a {signo} hoy? {emoji}"
-   - "{signo}: {Beneficio} {tema} hoy {emoji}"
-   - "¿Eres {signo}? {Pregunta sobre tema} HOY {emoji}"
+   - "{{signo}}: La señal que esperabas para {{tema}} {{emoji}}"
+   - "¡Atención {{signo}}! {{Beneficio}} activado {{emoji}}"
+   - "¿Qué le espera a {{signo}} hoy? {{emoji}}"
+   - "{{signo}}: {{Beneficio}} {{tema}} hoy {{emoji}}"
+   - "¿Eres {{signo}}? {{Pregunta}} HOY {{emoji}}"
    
    Temas: Dinero, Amor, Suerte, Destino, Abundancia, Cambios
    Emojis permitidos: 💰, 🔮, ✨, 💕, 🔥, ⚠️, 🌟
@@ -265,7 +260,7 @@ REGLAS OBLIGATORIAS PARA TÍTULOS PREMIUM:
 Responde SOLO JSON:
 {{
   "titulo": "♑ Capricornio: La señal que esperabas para el dinero 💰",
-  "descripcion": "Tu energía de {elemento} fluye con abundancia financiera.  Video completo: https://www.youtube.com/watch?v={video_largo_id}\\n🔔 Suscríbete: https://www.youtube.com/@tucielhoy",
+  "descripcion": "Tu energía de {elemento} fluye con abundancia financiera. 🎥 Video completo: https://www.youtube.com/watch?v={video_largo_id}\\n🔔 Suscríbete: https://www.youtube.com/@tucielhoy",
   "comentario_fijado": "¿Sientes esta energía? Decreta 'HECHO ESTÁ'. Video: https://www.youtube.com/watch?v={video_largo_id}",
   "guion": "{signo}, este mensaje del universo es solo para ti. Hoy tu elemento {elemento} se activa con una energía imparable que transforma tu realidad. En el amor, las estrellas revelan una verdad que necesitabas escuchar: es momento de abrir tu corazón. En el dinero, una oportunidad inesperada toca tu puerta. Confía en tu intuición, está más fuerte que nunca. Tu mantra: 'Atraigo abundancia infinita'. Mira el video completo en mi canal.",
   "visual_prompt": "vertical mystical {elemento} energy"
@@ -301,10 +296,9 @@ def llamar_deepseek_short(signo, fecha, video_largo_id="PLACEHOLDER"):
             # ✅ VALIDAR LONGITUD DEL GUION (75-95 palabras)
             palabras_guion = len(datos.get("guion", "").split())
             if palabras_guion < 75:
-                print(f"⚠️ Guion muy corto ({palabras_guion} palabras). Ajustando...")
-                # La IA debería generar 75-95, pero si no, lo dejamos pasar
+                print(f"⚠️ Guion corto ({palabras_guion} palabras). Ajustando...")
             elif palabras_guion > 95:
-                print(f"️ Guion muy largo ({palabras_guion} palabras). Ajustando...")
+                print(f"⚠️ Guion largo ({palabras_guion} palabras). Ajustando...")
             
             # ✅ ASEGURAR URL REAL
             if video_largo_id and video_largo_id != "PLACEHOLDER":
@@ -541,7 +535,7 @@ def main():
         
         video_largo_id = buscar_ultimo_video_largo()
         id_para_prompt = video_largo_id if video_largo_id else "PLACEHOLDER"
-        print(f" Video largo ID: {video_largo_id}")
+        print(f"🎬 Video largo ID: {video_largo_id}")
         
         datos = llamar_deepseek_short(signo, datetime.now(TZ).strftime("%d de %B de %Y"), id_para_prompt)
         print(f"   📝 Título: {datos.get('titulo')} ({len(datos.get('titulo', ''))} chars)")
