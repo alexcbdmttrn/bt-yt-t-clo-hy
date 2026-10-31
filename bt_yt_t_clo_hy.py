@@ -1,22 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 BT_YT_T_CLO_HY - Bot Horóscopo Master (Tu Cielo Hoy) - VERSIÓN ELITE 2026
-============================================================================
-NOVEDADES vs versión anterior:
-- INTRO de 2s con música al inicio del video (antes de la narración del primer signo)
-- 5 títulos candidatos + scorer local (longitud, trigger, emoji, signo)
-- Descripción en 3 capas (hook 125 + keywords + capítulos + CTA)
-- Hook rotado para la intro (5 estructuras)
-- Voz por modo (daily/weekly/monthly con rate distinto)
-- Música por modo (no aleatoria)
-- Tags hiper-específicos por modo
-- Hashtags rotados por tema
-- Scheduling con ventana amplia (no salta al día siguiente)
-- Persistencia de titulos_publicados.json con commit a GitHub (FIX CRÍTICO)
-- try/finally para cerrar AudioFileClip y VideoClip (fix leaks)
-- Cloudflare con backoff exponencial
-- Fix bg.duration == 0
-- Validación de título antes de subir
+Fix aplicado: KeyError 'MODO' corregido en construir_prompt.
 """
 import asyncio, base64, bisect, json, os, random, re, ssl, socket, sys, time, traceback, unicodedata, subprocess
 from datetime import datetime, timedelta, timezone
@@ -47,18 +32,16 @@ REPO_NAME = os.getenv("GITHUB_REPOSITORY", "")
 CANAL_LINK = "https://www.youtube.com/@tucielhoy"
 TITULOS_FILE = "titulos_publicados.json"
 W, H, FPS = 1920, 1080, 24
-INTRO_DUR = 2.0  # segundos de música antes de la narración del primer signo
+INTRO_DUR = 2.0
 
 VOZ_CANAL = "es-MX-DaliaNeural"
 
-# Rate de voz según modo (más calmado en mensual)
 VOZ_RATE_POR_MODO = {
     "daily": "-4%",
     "weekly": "-3%",
     "monthly": "-2%",
 }
 
-# Música fija por modo
 MUSICA_POR_MODO = {
     "daily": "Celestial Drift.mp3",
     "weekly": "Astral Zenith.mp3",
@@ -152,7 +135,6 @@ def guardar_titulo(titulo):
     guardar_json(TITULOS_FILE, data)
 
 def hacer_commit_titulos():
-    """Persiste titulos_publicados.json en GitHub (FIX CRÍTICO)."""
     if not GITHUB_TOKEN or not REPO_NAME:
         print("   ⚠️ Sin GITHUB_TOKEN/REPO_NAME. El estado no se persistirá.")
         return False
@@ -181,7 +163,6 @@ def parsear_json(texto):
     return json.loads(t[i:j + 1], strict=False)
 
 def seleccionar_mejor_titulo(titulos):
-    """Scorer local: elige el título con mayor CTR predicho."""
     emojis = ["💰", "🔮", "✨", "💕", "🔥", "⚠️", "🌟", "🌙", "💫"]
     triggers = ["HOY", "hoy", "Nadie", "Señal", "señal", "Alerta", "alerta",
                 "Cambio", "cambio", "Secreto", "secreto", "Verdad", "verdad",
@@ -202,7 +183,7 @@ def seleccionar_mejor_titulo(titulos):
             score += 15
         if any(e in texto for e in emojis):
             score += 10
-        if "|" in texto:  # estructura con pipe (más limpia)
+        if "|" in texto:
             score += 5
         
         if score > best_score:
@@ -298,7 +279,11 @@ Responde SOLO JSON con este formato exacto:
 def construir_prompt(modo, fecha, fase_lunar):
     modo_label = {"daily": "DIARIO", "weekly": "SEMANAL", "monthly": "MENSUAL"}[modo]
     palabras = {"daily": "90-110", "weekly": "150-180", "monthly": "250-300"}[modo]
-    prompt = PROMPT_BASE.format(fecha=fecha, fase_lunar=fase_lunar, modo=modo_label)
+    # FIX: pasar tanto 'modo' como 'MODO' para que str.format() no falle
+    prompt = PROMPT_BASE.format(
+        fecha=fecha, fase_lunar=fase_lunar,
+        modo=modo_label, MODO=modo_label
+    )
     prompt = prompt.replace("90-110 palabras (daily), 150-180 (weekly), 250-300 (monthly)", f"{palabras} palabras")
     return prompt
 
@@ -319,18 +304,15 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
             if len(datos.get("signos", [])) != 12:
                 raise ValueError(f"La IA generó {len(datos.get('signos', []))} signos (esperados 12)")
             
-            # Compatibilidad con formato viejo
             if "titulos" not in datos and "titulo" in datos:
                 datos["titulos"] = [{"texto": datos["titulo"], "estructura": "legacy"}]
             
             if not datos.get("titulos"):
                 raise ValueError("Faltan títulos")
             
-            # Elegir mejor título
             datos["titulo"] = seleccionar_mejor_titulo(datos["titulos"])
             print(f"   🏆 Título elegido: {datos['titulo']} ({len(datos['titulo'])} chars)")
             
-            # Componer descripción 3 capas
             partes = []
             if datos.get("descripcion_hook_125"):
                 partes.append(datos["descripcion_hook_125"][:125])
@@ -338,7 +320,6 @@ def llamar_deepseek(fecha, fase_lunar, modo="daily"):
                 partes.append(datos["descripcion_keywords"])
             datos["descripcion_base"] = "\n\n".join(partes)
             
-            # Detectar tema
             if datos.get("tema") not in ["dinero", "amor", "alerta", "general"]:
                 texto = (datos["descripcion_base"] + " " + " ".join(s.get("guion","") for s in datos["signos"])).lower()
                 if any(w in texto for w in ["dinero", "abundancia", "prosperidad"]):
@@ -421,7 +402,7 @@ def obtener_imagen_segura(prompt, ruta, es_miniatura=False):
         return None
 
 # ================================================================
-# 5. AUDIO (voz por modo)
+# 5. AUDIO
 # ================================================================
 async def generar_audio(texto, ruta, modo="daily"):
     max_retries = 3
@@ -566,7 +547,7 @@ class RenderEscenas:
         return fr
 
 def renderizar_video(signos_data, salida, modo="daily"):
-    escenas, t_total = [], INTRO_DUR  # ✅ empieza en INTRO_DUR (2s)
+    escenas, t_total = [], INTRO_DUR
     clips_abiertos = []
     
     try:
@@ -608,7 +589,6 @@ def renderizar_video(signos_data, salida, modo="daily"):
         render = RenderEscenas(escenas, (W, H), t_total)
         video = VideoClip(render.frame, duration=t_total)
         
-        # Audio: narración retrasada por INTRO_DUR, música desde t=0
         clips_audio = [c.set_start(INTRO_DUR + e["inicio"]) for c, e in zip(clips_abiertos, escenas)]
         
         musica_elegida = MUSICA_POR_MODO.get(modo)
@@ -657,7 +637,6 @@ def obtener_credenciales_youtube():
 def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
     youtube = build("youtube", "v3", credentials=obtener_credenciales_youtube())
     
-    # Capítulos (usando duraciones reales sin abrir clips)
     tiempo_acumulado = INTRO_DUR
     caps = []
     for i, s in enumerate(datos["signos"]):
@@ -685,7 +664,6 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
     
     tags_finales = construir_tags_finales(datos.get("tags", []), modo)
     
-    # Validar título
     titulo = datos["titulo"][:100] if len(datos["titulo"]) > 100 else datos["titulo"]
     
     body = {
@@ -743,7 +721,6 @@ def subir_a_youtube(ruta_video, ruta_miniatura, datos, hora_utc, modo="daily"):
 # 8. SCHEDULING INTELIGENTE
 # ================================================================
 def calcular_hora_publicacion(ahora, tipo):
-    """Ventana amplia: si ya pasó la hora óptima, publica +2h del mismo día, no mañana."""
     if tipo == "monthly":
         base = ahora.replace(hour=12, minute=0, second=0, microsecond=0)
         if ahora >= base:
@@ -751,22 +728,19 @@ def calcular_hora_publicacion(ahora, tipo):
         return base.replace(minute=random.randint(0, 10))
     
     if tipo == "weekly":
-        # Ventana 9 AM - 3 PM
         inicio = ahora.replace(hour=9, minute=0, second=0, microsecond=0)
         fin = ahora.replace(hour=15, minute=0, second=0, microsecond=0)
         if ahora >= fin:
-            # Si ya pasó, programar 9 AM del día siguiente
             inicio += timedelta(days=1)
             return inicio.replace(minute=random.randint(0, 50))
         if ahora < inicio:
             return inicio.replace(minute=random.randint(0, 50))
         return ahora + timedelta(minutes=random.randint(5, 40))
     
-    # daily: ventana 5 AM - 12 PM
+    # daily
     inicio = ahora.replace(hour=5, minute=0, second=0, microsecond=0)
     fin = ahora.replace(hour=12, minute=0, second=0, microsecond=0)
     if ahora >= fin:
-        # Si ya pasó, programar +2h mismo día si es antes de las 6pm, sino mañana 5am
         candidato = ahora + timedelta(hours=2)
         if candidato.hour < 18:
             return candidato
@@ -784,7 +758,6 @@ def main():
         dia_semana = ahora.weekday()
         dia_mes = ahora.day
         
-        # Calendario automático
         if dia_mes == 1:
             tipo = "monthly"
             print(f"📅 Día 1 del mes → MENSUAL")
@@ -807,7 +780,6 @@ def main():
         print(f"🧠 1. Generando contenido SEO con DeepSeek...")
         datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
         
-        # Deduplicación (ahora sí funciona porque el archivo se persiste)
         if titulo_ya_publicado(datos["titulo"]):
             print("⚠️ Título repetido. Regenerando...")
             datos = llamar_deepseek(fecha_hoy, fase_lunar, tipo)
@@ -838,11 +810,9 @@ def main():
         
         print(f"✨ ¡COMPLETADO! Programado para {hora_final:%H:%M}")
         
-        # Persistencia (FIX CRÍTICO)
         guardar_titulo(datos["titulo"])
         hacer_commit_titulos()
         
-        # Cleanup
         for f in os.listdir():
             if f.startswith("temp_") or f in ["video_final.mp4", "miniatura.jpg"]:
                 try:
